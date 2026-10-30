@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "p2"
+version = "0.1.0"
+description = "Runtime de aceleração P2: modelos TensorRT na Jetson Orin Nano"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.21.6,<2",
+    "typing_extensions>=4.10",
+]
+
+[project.optional-dependencies]
+cpu = [
+    "onnxruntime>=1.19",
+    "onnx>=1.16",
+]
+trt = [
+    "cuda-python==12.6.*",
+    "onnx>=1.16",
+]
+
+[project.scripts]
+p2-build = "p2.cli.build:main"
+p2-bench = "p2.cli.bench:main"
+p2-list = "p2.cli.list:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests", "scripts", "examples"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "ANN", "SIM", "RUF", "PL", "ERA"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src", "tests", "scripts", "examples"]
+mypy_path = "typings"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["scripts", "examples"]
+markers = [
+    "jetson: exige a Jetson com TensorRT",
+]
