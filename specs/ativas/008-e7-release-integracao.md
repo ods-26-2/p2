@@ -34,7 +34,7 @@
 - D3 [assumida] teste do wheel num venv temporário no scratchpad, fora da `.venv` — exceção à regra de venv única do PYTHON.md, só para validar o pacote limpo
 - D4 [assumida] Dockerfile do guia com `FROM` marcado como pendente do P3
 - D5 [assumida] `conf` e `iou` agrupados em `Thresholds` no exemplo (limite de 5 parâmetros do ruff)
-- D6 [pendente] repositório da release: o remoto é `joaoVs17/p2_runtime`, mas plano/contrato/guia usam `ods-26-2/p2` — decidir antes da T7
+- D6 [aprovada] publicar agora em `joaoVs17/p2_runtime`; URLs de plano/contrato/guia/README/decisões continuam em `ods-26-2/p2`, que será o local principal depois — escolha do usuário
 
 ## Tarefas
 - [x] T1: `examples/yolo_demo.py` + config mypy/ruff/pytest (R1–R3, D1, D2)
@@ -76,3 +76,5 @@
 - 2026-10-30: T5: venv limpo (scratchpad) com `[cpu]`: numpy 1.26.4, onnx/ort 1.23.2; p2-build, p2-list, load/infer (1, 84, 8400), p2-bench ok, p2 importado do site-packages
 - 2026-10-30: pytest 219 passed, 3 skipped; mypy strict 44 arquivos; ruff ok
 - 2026-10-30: achado: remoto `joaoVs17/p2_runtime` ≠ `ods-26-2/p2` das URLs (D6)
+- 2026-10-30: .gitignore ampliado (engines TRT, bytecode, runs/, cobertura, .env, editores); commits 4d58487 e 2b8b479 na branch v1.0.0; tag anotada v0.1.0 em 2b8b479
+- 2026-10-30: push e release não feitos: sem credencial do GitHub nesta sessão (HTTPS sem helper; SSH com ~/.ssh/github recusado em modo não interativo) e sem `gh`; pendentes com o usuário
