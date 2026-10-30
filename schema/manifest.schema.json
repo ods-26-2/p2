@@ -1,0 +1,14 @@
+{
+  "engine_ref": "yolo11n-1.0.0",
+  "source_onnx": { "file": "model.onnx", "sha256": "f3f88a57…48de1" },
+  "inputs":  { "images":  { "shape": [1, 3, 640, 640], "dtype": "float32" } },
+  "outputs": { "output0": { "shape": [1, 84, 8400],    "dtype": "float32" } },
+  "max_batch": 1,
+  "variants": {
+    "FP32": { "file": "fp32.engine", "engine_version": "yolo11n-1.0.0-fp32" },
+    "FP16": { "file": "fp16.engine", "engine_version": "yolo11n-1.0.0-fp16" }
+  },
+  "platform": { "jetpack": "…", "tensorrt": "…", "cuda": "…" },
+  "built_with": "p2-build 0.2.0",
+  "built_at": "2026-…"
+}
