@@ -92,3 +92,5 @@
 - 2026-10-30: push e release não feitos: sem credencial do GitHub nesta sessão (HTTPS sem helper; SSH com ~/.ssh/github recusado em modo não interativo) e sem `gh`; pendentes com o usuário
 - 2026-10-30: T9: `.venv` recriada (Python 3.10.12); testes do yolo11n leem `models/yolo11n.onnx` (D7); com o modelo (hash f3f8…8de1): pytest 219 passed, 3 skipped; sem ele: 213 passed, 9 skipped; mypy strict 45 arquivos; ruff ok (D8)
 - 2026-10-30: T10: D6 corrigida — remoto agora é `ods-26-2/p2`; branch `V0.1.0` já publicada (31f3050); tag `v0.1.0` ausente no clone e no remoto
+- 2026-10-30: wheel regerado: `dist/p2-0.1.0-py3-none-any.whl` 28 KB, sha256 a92930f6…09e4df, 19 módulos, sem tests/scripts/examples; venv limpo `[cpu]`: import, p2-build/p2-bench/p2-list ok; tag anotada `v0.1.0` local
+- 2026-10-30: push da tag e release não feitos: sem credencial HTTPS, chave SSH `~/.ssh/github` fora do agente, sem `gh`; pendentes com o usuário
