@@ -5,9 +5,9 @@ import numpy as np
 import pytest
 
 import yolo_demo
+from helpers.yolo11n import YOLO11N_MISSING, yolo11n_available, yolo11n_package
 from p2.cli.build import EXIT_OK, main
 
-FIXTURE_DIR: Final = Path(__file__).parent / "fixtures" / "yolo11n-1.0.0"
 BUS_IMAGE: Final = Path(__file__).parent.parent / "assets" / "bus.jpg"
 
 
@@ -61,15 +61,14 @@ def test_thresholds_filter_and_suppress() -> None:
     assert [round(d.score, 1) for d in strict] == [0.9]
 
 
-@pytest.mark.skipif(
-    not (FIXTURE_DIR / "model.onnx").is_file(), reason="model.onnx do yolo11n ausente"
-)
+@pytest.mark.skipif(not yolo11n_available(), reason=YOLO11N_MISSING)
 def test_demo_on_bus_image(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level("INFO")
     engines = tmp_path / "engines"
-    assert main([str(FIXTURE_DIR), "--cpu-only", "--engine-dir", str(engines)]) == EXIT_OK
+    package = yolo11n_package(tmp_path / "pkg")
+    assert main([str(package), "--cpu-only", "--engine-dir", str(engines)]) == EXIT_OK
     monkeypatch.setenv("P2_ENGINE_DIR", str(engines))
     monkeypatch.delenv("P2_BACKEND", raising=False)
     out = tmp_path / "anotada.jpg"

@@ -77,7 +77,7 @@
 
 ## Validação
 - na Jetson: `pytest -m jetson`, `mypy`, `ruff check`, `ruff format --check`
-- manual: `p2-build tests/fixtures/yolo11n-1.0.0` e `p2-build <pacote-app-epi>`
+- manual: `p2-build <pacote-yolo11n>` (metadata da fixture + `models/yolo11n.onnx`, 008/R9) e `p2-build <pacote-app-epi>`
 
 ## Log
 - 2026-10-30: T1–T6 (modo auto): pytest 161 passed, 1 skipped (jetson); mypy strict 29 arquivos, ruff ok; nada executado com TensorRT real

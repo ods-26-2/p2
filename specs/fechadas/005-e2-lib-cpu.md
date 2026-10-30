@@ -98,7 +98,7 @@
 - test_api_cpu.py: ciclo, info, array/dict, não contíguo, cópias, with, release, 4 threads, options, engine_ref, P2_BACKEND, import leve, exports [R3–R10]
 - test_errors.py: ErrorCode/P2Error, ENGINE_NOT_FOUND (pasta, manifesto, ref, ONNX ausente/corrompido/divergente, FP16), INVALID_INPUT_SHAPE (8 casos), RUNTIME_ERROR [R1, R2, R5, R6]
 - test_manifest.py: leitura ida e volta (CPU e TRT), rejeições de formato [R2]
-- test_yolo11n.py: casos 2, 3, 5 [R5, R8]
+- test_yolo11n.py: casos 2, 3, 5 [R5, R8] (→ 008: pacote montado por `helpers/yolo11n.py`)
 
 ## Validação
 - `pytest`, `mypy`, `ruff check`, `ruff format --check`

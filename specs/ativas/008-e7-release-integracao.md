@@ -5,7 +5,7 @@
 - Fechada: —
 - Base: 004 (contrato), 005 (API), 006 (backend TRT, helpers/yolo), 007 (orçamento); plano-p2.md (E7)
 - Substituída por: —
-- Tags: E7, release, wheel, exemplo, yolo_demo, guia, integracao, I1, docker, letterbox, nms
+- Tags: E7, release, wheel, exemplo, yolo_demo, guia, integracao, I1, docker, letterbox, nms, yolo11n, fixture, models
 
 ## Objetivo
 - I1 integra o P2 sem ajuda: exemplo completo, guia passo a passo e wheel 0.1.0 publicado
@@ -23,6 +23,7 @@
 - R6: wheel instalado num venv limpo do notebook com `[cpu]`: `import p2`, `p2-build --cpu-only`, `p2.load`/`infer` do yolo11n e os três comandos
 - R7 (usuário): wheel testado num venv limpo na Jetson
 - R8 (externo, com confirmação): tag `v0.1.0` e release com `p2-0.1.0-py3-none-any.whl` em `ods-26-2/p2`
+- R9: ONNX do yolo11n em `models/yolo11n.onnx` (fora do git); testes montam o pacote numa pasta temporária com o `metadata.json` da fixture (`onnx_file: yolo11n.onnx`); sem o arquivo, skip
 
 ## Regras
 - Valem 001/RG1–RG3, 003/RG1, docs/contrato.md
@@ -34,7 +35,9 @@
 - D3 [assumida] teste do wheel num venv temporário no scratchpad, fora da `.venv` — exceção à regra de venv única do PYTHON.md, só para validar o pacote limpo
 - D4 [assumida] Dockerfile do guia com `FROM` marcado como pendente do P3
 - D5 [assumida] `conf` e `iou` agrupados em `Thresholds` no exemplo (limite de 5 parâmetros do ruff)
-- D6 [aprovada] publicar agora em `joaoVs17/p2_runtime`; URLs de plano/contrato/guia/README/decisões continuam em `ods-26-2/p2`, que será o local principal depois — escolha do usuário
+- D6 [aprovada] release em `ods-26-2/p2` (remoto `origin`, branch `V0.1.0`), o mesmo das URLs de plano/contrato/guia/README — corrigida: a versão anterior apontava `joaoVs17/p2_runtime`, que deixou de ser o remoto
+- D7 [assumida] pacote do yolo11n montado por `tests/helpers/yolo11n.py` (copia o metadata, symlink do ONNX) — `p2-build` exige ONNX e metadata na mesma pasta; o modelo fica em `models/`
+- D8 [assumida] `ruff format --check` só em `src tests scripts examples` (como no README) — ruff 0.17 formata blocos de código em `.md`, e os docs usam comentários alinhados
 
 ## Tarefas
 - [x] T1: `examples/yolo_demo.py` + config mypy/ruff/pytest (R1–R3, D1, D2)
@@ -45,6 +48,8 @@
 - [ ] T6 (usuário): wheel na Jetson (R7)
 - [ ] T7 (externo, aguardando confirmação): tag e release (R8)
 - [ ] T8 (usuário): acompanhar a primeira build de I1 na Jetson
+- [x] T9: `.venv` recriada; testes do yolo11n lendo `models/yolo11n.onnx` (R9, D7)
+- [x] T10: corrigir D6
 
 ## Mapa de código
 
@@ -66,8 +71,15 @@
 ### tests/test_yolo_demo.py
 - letterbox, volta ao quadro original, classe sem nome, limiares, demo na bus.jpg, engine ausente, imagem ilegível [R1–R3]
 
+### tests/helpers/yolo11n.py
+- YOLO11N_REF, YOLO11N_ONNX (`models/yolo11n.onnx`), YOLO11N_METADATA, YOLO11N_MISSING: Final [R9]
+- def yolo11n_available() -> bool; def yolo11n_package(directory: Path) -> Path: metadata copiado + symlink do ONNX [R9, D7]
+
+### tests/fixtures/yolo11n-1.0.0/metadata.json (de 001), tests/test_yolo11n.py (de 001, 005, 006), tests/jetson/conftest.py, tests/jetson/test_build_trt.py (de 002, 006), README.md (de 003)
+- usam `helpers/yolo11n.py`; `onnx_file: yolo11n.onnx`; README com o novo caminho [R9]
+
 ## Validação
-- `pytest`, `mypy`, `ruff check`, `ruff format --check`; venv limpo com o wheel
+- `pytest`, `mypy`, `ruff check`, `ruff format --check src tests scripts examples`; venv limpo com o wheel
 
 ## Log
 - 2026-10-30: criada (modo auto); usuário pediu para aguardar as ações externas
@@ -78,3 +90,5 @@
 - 2026-10-30: achado: remoto `joaoVs17/p2_runtime` ≠ `ods-26-2/p2` das URLs (D6)
 - 2026-10-30: .gitignore ampliado (engines TRT, bytecode, runs/, cobertura, .env, editores); commits 4d58487 e 2b8b479 na branch v1.0.0; tag anotada v0.1.0 em 2b8b479
 - 2026-10-30: push e release não feitos: sem credencial do GitHub nesta sessão (HTTPS sem helper; SSH com ~/.ssh/github recusado em modo não interativo) e sem `gh`; pendentes com o usuário
+- 2026-10-30: T9: `.venv` recriada (Python 3.10.12); testes do yolo11n leem `models/yolo11n.onnx` (D7); com o modelo (hash f3f8…8de1): pytest 219 passed, 3 skipped; sem ele: 213 passed, 9 skipped; mypy strict 45 arquivos; ruff ok (D8)
+- 2026-10-30: T10: D6 corrigida — remoto agora é `ods-26-2/p2`; branch `V0.1.0` já publicada (31f3050); tag `v0.1.0` ausente no clone e no remoto

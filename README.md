@@ -61,7 +61,9 @@ p2-build <pasta-do-pacote> [--cpu-only | --precision FP16 FP32] [--force] [--eng
 Exemplo com o pacote de teste:
 
 ```bash
-p2-build tests/fixtures/yolo11n-1.0.0 --cpu-only --engine-dir /tmp/p2-engines
+mkdir -p /tmp/yolo11n-pkg
+cp tests/fixtures/yolo11n-1.0.0/metadata.json models/yolo11n.onnx /tmp/yolo11n-pkg/
+p2-build /tmp/yolo11n-pkg --cpu-only --engine-dir /tmp/p2-engines
 ```
 
 ## `p2-bench` e `p2-list`
@@ -81,11 +83,11 @@ pip install -r requirements-dev.txt
 pytest
 mypy
 ruff check
-ruff format --check src tests scripts
+ruff format --check src tests scripts examples
 python -m build --wheel
 ```
 
 - Testes de TensorRT ficam em `tests/jetson/` (marca `jetson`) e são pulados sem `tensorrt`. Na placa: `pip install -e ".[trt,cpu]" -r requirements-dev.txt` e `pytest -m jetson`.
 - Equivalência de outro modelo: `P2_ENGINE_DIR=<raiz> P2_EQUIVALENCE_ENGINE=app-epi-1.0.0 P2_EQUIVALENCE_IMAGES=<pasta> P2_EQUIVALENCE_REPORT=reports/equivalencia/app-epi-1.0.0.md pytest -m jetson tests/jetson/test_equivalence.py`
-- O teste do yolo11n precisa de `tests/fixtures/yolo11n-1.0.0/model.onnx` (fora do git); sem ele, é pulado.
+- Os testes do yolo11n precisam de `models/yolo11n.onnx` (fora do git); o pacote é montado numa pasta temporária com o `metadata.json` de `tests/fixtures/yolo11n-1.0.0/`; sem o arquivo, são pulados.
 - Specs de desenvolvimento em [specs/INDEX.md](specs/INDEX.md).

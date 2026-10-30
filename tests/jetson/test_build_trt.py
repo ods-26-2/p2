@@ -1,11 +1,11 @@
 import hashlib
 import importlib.metadata
 from pathlib import Path
-from typing import Final
 
 import pytest
 
 from helpers.model_package import ENGINE_REF, write_package
+from helpers.yolo11n import YOLO11N_MISSING, YOLO11N_REF, yolo11n_available, yolo11n_package
 from p2.build.platform import short_tensorrt_version
 from p2.cli.build import EXIT_BUILD_ERROR, EXIT_OK, main
 from p2.manifest import read_manifest
@@ -13,9 +13,6 @@ from p2.manifest import read_manifest
 pytest.importorskip("tensorrt")
 
 pytestmark = pytest.mark.jetson
-
-YOLO_FIXTURE: Final = Path(__file__).parent.parent / "fixtures" / "yolo11n-1.0.0"
-YOLO_REF: Final = "yolo11n-1.0.0"
 
 
 def _tensorrt_version() -> str:
@@ -69,13 +66,12 @@ def test_parser_error_is_build_error(tmp_path: Path, caplog: pytest.LogCaptureFi
     assert list(engines.iterdir()) == []
 
 
-@pytest.mark.skipif(
-    not (YOLO_FIXTURE / "model.onnx").is_file(), reason="model.onnx do yolo11n ausente"
-)
+@pytest.mark.skipif(not yolo11n_available(), reason=YOLO11N_MISSING)
 def test_yolo11n_case_6(tmp_path: Path) -> None:
     engines = tmp_path / "engines"
-    assert main([str(YOLO_FIXTURE), "--engine-dir", str(engines)]) == EXIT_OK
-    engine_dir = engines / YOLO_REF
+    package = yolo11n_package(tmp_path / "pkg")
+    assert main([str(package), "--engine-dir", str(engines)]) == EXIT_OK
+    engine_dir = engines / YOLO11N_REF
     manifest = read_manifest(engine_dir)
     assert (engine_dir / "fp16.engine").is_file()
     assert (engine_dir / "fp32.engine").is_file()

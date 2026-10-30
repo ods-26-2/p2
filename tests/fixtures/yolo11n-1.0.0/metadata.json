@@ -1,7 +1,7 @@
 {
   "artifact_id": "yolo11n",
   "artifact_version": "1.0.0",
-  "onnx_file": "model.onnx",
+  "onnx_file": "yolo11n.onnx",
   "hash_sha256": "f3f88a57b89f447e639b86279cdb0c636719f8bf7fefab8f3e27c44536e48de1",
   "input_shape": [
     1,

@@ -120,10 +120,10 @@
 - def write_package(root: Path, spec: PackageSpec | None = None) -> Path: ONNX sintético + metadata com hash real (→ 005: IR 10, saída dependente da entrada, build_engine)
 
 ### tests/fixtures/yolo11n-1.0.0/metadata.json
-- pacote do yolo11n (80 classes COCO do ONNX, hash do plano); `model.onnx` fora do git [D18]
+- pacote do yolo11n (80 classes COCO do ONNX, hash do plano); `model.onnx` fora do git [D18] (→ 008: `onnx_file` = `yolo11n.onnx`, ONNX em `models/`)
 
 ### tests/test_yolo11n.py
-- caso 1 do plano: `--cpu-only` gera o manifesto esperado; skip sem `model.onnx`
+- caso 1 do plano: `--cpu-only` gera o manifesto esperado; skip sem `model.onnx` (→ 008: pacote montado por `helpers/yolo11n.py`)
 
 ### tests/test_manifest.py
 - cobre R7 (prioridade, env vazio) e R10 (ida e volta do JSON)

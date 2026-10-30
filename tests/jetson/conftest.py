@@ -1,14 +1,12 @@
 from pathlib import Path
-from typing import Final
 
 import pytest
 
 from helpers.model_package import write_package
+from helpers.yolo11n import YOLO11N_MISSING, yolo11n_available, yolo11n_package
 from p2.api import BACKEND_ENV
 from p2.cli.build import EXIT_OK, main
 from p2.manifest import ENGINE_DIR_ENV
-
-YOLO_FIXTURE: Final = Path(__file__).parent.parent / "fixtures" / "yolo11n-1.0.0"
 
 
 @pytest.fixture(scope="session")
@@ -24,10 +22,12 @@ def compiled_synth_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
 @pytest.fixture(scope="session")
 def compiled_yolo_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     pytest.importorskip("tensorrt")
-    if not (YOLO_FIXTURE / "model.onnx").is_file():
-        pytest.skip("model.onnx do yolo11n ausente")
-    root = tmp_path_factory.mktemp("yolo") / "engines"
-    assert main([str(YOLO_FIXTURE), "--engine-dir", str(root)]) == EXIT_OK
+    if not yolo11n_available():
+        pytest.skip(YOLO11N_MISSING)
+    base = tmp_path_factory.mktemp("yolo")
+    package = yolo11n_package(base / "pkg")
+    root = base / "engines"
+    assert main([str(package), "--engine-dir", str(root)]) == EXIT_OK
     return root
 
 
