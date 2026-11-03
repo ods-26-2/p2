@@ -35,7 +35,7 @@
 - D3 [assumida] teste do wheel num venv temporário no scratchpad, fora da `.venv` — exceção à regra de venv única do PYTHON.md, só para validar o pacote limpo
 - D4 [assumida] Dockerfile do guia com `FROM` marcado como pendente do P3
 - D5 [assumida] `conf` e `iou` agrupados em `Thresholds` no exemplo (limite de 5 parâmetros do ruff)
-- D6 [aprovada] release em `ods-26-2/p2` (remoto `origin`, branch `V0.1.0`), o mesmo das URLs de plano/contrato/guia/README — corrigida: a versão anterior apontava `joaoVs17/p2_runtime`, que deixou de ser o remoto
+- D6 [aprovada] release em `ods-26-2/p2` (remoto `origin`; branches `main` e `develop`, versões só como tags), o mesmo das URLs de plano/contrato/guia/README — corrigida: a versão anterior apontava `joaoVs17/p2_runtime`, que deixou de ser o remoto
 - D7 [assumida] pacote do yolo11n montado por `tests/helpers/yolo11n.py` (copia o metadata, symlink do ONNX) — `p2-build` exige ONNX e metadata na mesma pasta; o modelo fica em `models/`
 - D8 [assumida] `ruff format --check` só em `src tests scripts examples` (como no README) — ruff 0.17 formata blocos de código em `.md`, e os docs usam comentários alinhados
 
@@ -46,7 +46,7 @@
 - [x] T4: gerar o wheel e conferir conteúdo (R5)
 - [x] T5: venv limpo no notebook (R6, D3)
 - [ ] T6 (usuário): wheel na Jetson (R7)
-- [ ] T7 (externo, aguardando confirmação): tag e release (R8)
+- [x] T7 (externo, confirmado): tag e release (R8)
 - [ ] T8 (usuário): acompanhar a primeira build de I1 na Jetson
 - [x] T9: `.venv` recriada; testes do yolo11n lendo `models/yolo11n.onnx` (R9, D7)
 - [x] T10: corrigir D6
@@ -94,3 +94,5 @@
 - 2026-10-30: T10: D6 corrigida — remoto agora é `ods-26-2/p2`; branch `V0.1.0` já publicada (31f3050); tag `v0.1.0` ausente no clone e no remoto
 - 2026-10-30: wheel regerado: `dist/p2-0.1.0-py3-none-any.whl` 28 KB, sha256 a92930f6…09e4df, 19 módulos, sem tests/scripts/examples; venv limpo `[cpu]`: import, p2-build/p2-bench/p2-list ok; tag anotada `v0.1.0` local
 - 2026-10-30: push da tag e release não feitos: sem credencial HTTPS, chave SSH `~/.ssh/github` fora do agente, sem `gh`; pendentes com o usuário
+- 2026-11-03: branches reorganizadas pelo usuário: `main` e `develop` em c13e409, `V0.1.0` apagada, sem branch com nome de versão; tag `v0.1.0` no remoto (c13e409)
+- 2026-11-03: T7: release `v0.1.0` publicada via `gh` com `p2-0.1.0-py3-none-any.whl`; download da URL do contrato com sha256 a92930f6…09e4df; `pip install "p2[cpu] @ <URL>"` em venv limpo ok
