@@ -43,6 +43,9 @@ Atualizado em 2026-11-04 (pré-release v0.2.0a1 publicada). Ler antes de qualque
 - 007/T8: limite de memória do container conta a memória do CUDA?
 - 008/T6: wheel da URL num venv limpo na placa; 008/T8: primeira build do I1 publicando `artifact_version: "app-epi-1.0.0-fp16"`
 
+### Modelos
+- `app-plates-1.0.0` em uso na placa (pacote fora do repositório): detector YOLO de 4 classes `placa_{1L,2L}_{BR,ME}`, estático FP32, cabe no contrato 1.0; não está no plano: definir se substitui ou acompanha o `app-epi-1.0.0` e qual consumidor o usa
+
 ### Dados de teste
 - `models/yolo11n.onnx` no clone (fora do git; usuário coloca)
 - ~20 imagens de pessoas com EPI em `tests/fixtures/imagens/` (plano); hoje só `assets/bus.jpg` e `assets/dogi.jpeg`
@@ -52,6 +55,7 @@ Atualizado em 2026-11-04 (pré-release v0.2.0a1 publicada). Ler antes de qualque
 - P3: imagem base com TensorRT 10.3 para o `FROM`; `/opt/ods/engines` somente leitura no container
 - B5/MOD-1: canal de entrega do pacote MODEL; mAP oficial (0,936 ou 0,9517); mAP com o engine FP16
 - MOD-1: correção da saída do app-epi para `[1, 7, 8400]` (vai junto com o contrato)
+- I1/B1: o exemplo do evento `ods.i1.detections` usa `artifact_version: "app-epi-1.0.0"`; contrato e plano (E7) pedem o `engine_version` (`"app-epi-1.0.0-fp16"`): alinhar qual vale; confirmar o schema do evento com o `app-plates`
 
 ### Fechamento de specs
 - 003, 002, 006, 007: após registrar as execuções na Jetson; 004: após o envio do contrato; 008: após a build do I1; 009: após T5–T12
