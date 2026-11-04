@@ -23,6 +23,7 @@
 - R6: wheel instalado num venv limpo do notebook com `[cpu]`: `import p2`, `p2-build --cpu-only`, `p2.load`/`infer` do yolo11n e os três comandos
 - R7 (usuário): wheel testado num venv limpo na Jetson
 - R8 (externo, com confirmação): tag `v0.1.0` e release com `p2-0.1.0-py3-none-any.whl` em `ods-26-2/p2`
+- R10: `examples/example.py`: roda o YOLO nas imagens de `assets/` (`bus.jpg`, `dogi.jpeg`) com nomes de `assets/coco80.txt`; reusa `yolo_demo`; imagens anotadas em `runs/example/`; `P2Error` → exit 1
 - R9: ONNX do yolo11n em `models/yolo11n.onnx` (fora do git); testes montam o pacote numa pasta temporária com o `metadata.json` da fixture (`onnx_file: yolo11n.onnx`); sem o arquivo, skip
 
 ## Regras
@@ -37,6 +38,7 @@
 - D5 [assumida] `conf` e `iou` agrupados em `Thresholds` no exemplo (limite de 5 parâmetros do ruff)
 - D6 [aprovada] release em `ods-26-2/p2` (remoto `origin`; branches `main` e `develop`, versões só como tags), o mesmo das URLs de plano/contrato/guia/README — corrigida: a versão anterior apontava `joaoVs17/p2_runtime`, que deixou de ser o remoto
 - D7 [assumida] pacote do yolo11n montado por `tests/helpers/yolo11n.py` (copia o metadata, symlink do ONNX) — `p2-build` exige ONNX e metadata na mesma pasta; o modelo fica em `models/`
+- D9 [assumida] `example.py` importa `yolo_demo` (mesma pasta) em vez de duplicar — exceção à D1: os dois ficam juntos em `examples/`
 - D8 [assumida] `ruff format --check` só em `src tests scripts examples` (como no README) — ruff 0.17 formata blocos de código em `.md`, e os docs usam comentários alinhados
 
 ## Tarefas
@@ -50,6 +52,7 @@
 - [ ] T8 (usuário): acompanhar a primeira build de I1 na Jetson
 - [x] T9: `.venv` recriada; testes do yolo11n lendo `models/yolo11n.onnx` (R9, D7)
 - [x] T10: corrigir D6
+- [x] T11: `examples/example.py` + `tests/test_example.py` (R10, D9)
 
 ## Mapa de código
 
@@ -58,7 +61,7 @@
 - def letterbox(image_bgr: ImageArray, size: int) -> Letterboxed: BGR→RGB, 114, /255, CHW [R1]
 - def box_iou(...); def nms(boxes, scores, classes, iou: float) -> list[int]: por classe [R1]
 - def postprocess(output, boxed, image_size, class_names, thresholds=None) -> list[Detection]: limiar, NMS, volta ao quadro original [R1]
-- def detect(handle: p2.Handle, image_bgr, class_names, thresholds=None) -> list[Detection]: tamanho do `info` [R2]
+- def detect(handle: p2.Handle, image_bgr, class_names, thresholds=None) -> list[Detection]: tamanho do `info` [R2] (→ 009: saída convertida para float32)
 - def class_names_for(engine_ref: str) -> list[str]: `metadata.json` da pasta do engine [R2]
 - def draw(image_bgr, detections) -> ImageArray; def main(argv) -> int [R3]
 
@@ -70,6 +73,13 @@
 
 ### tests/test_yolo_demo.py
 - letterbox, volta ao quadro original, classe sem nome, limiares, demo na bus.jpg, engine ausente, imagem ilegível [R1–R3]
+
+### examples/example.py
+- IMAGES, CLASS_NAMES_FILE, DEFAULT_ENGINE_REF = "yolo11n-1.0.0", DEFAULT_OUT_DIR = runs/example (Final) [R10]
+- def read_class_names(path: Path) -> list[str]; def run(engine_ref: str, out_dir: Path) -> int; def main(argv) -> int [R10, D9]
+
+### tests/test_example.py
+- nomes de coco80, exemplo nas duas imagens (CPU), engine ausente [R10]
 
 ### tests/helpers/yolo11n.py
 - YOLO11N_REF, YOLO11N_ONNX (`models/yolo11n.onnx`), YOLO11N_METADATA, YOLO11N_MISSING: Final [R9]
@@ -96,3 +106,4 @@
 - 2026-10-30: push da tag e release não feitos: sem credencial HTTPS, chave SSH `~/.ssh/github` fora do agente, sem `gh`; pendentes com o usuário
 - 2026-11-03: branches reorganizadas pelo usuário: `main` e `develop` em c13e409, `V0.1.0` apagada, sem branch com nome de versão; tag `v0.1.0` no remoto (c13e409)
 - 2026-11-03: T7: release `v0.1.0` publicada via `gh` com `p2-0.1.0-py3-none-any.whl`; download da URL do contrato com sha256 a92930f6…09e4df; `pip install "p2[cpu] @ <URL>"` em venv limpo ok
+- 2026-11-04: T11 (branch dev-v0.2.0): example.py na CPU: bus.jpg → bus 0,94, person 0,90/0,85/0,83/0,40; dogi.jpeg → dog 0,94; pytest 222 passed, 3 skipped com o modelo

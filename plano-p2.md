@@ -1,6 +1,6 @@
 # Plano de implementação · P2 Runtime de aceleração
 
-Atualizado em 29/10/2026
+Atualizado em 04/11/2026
 
 ## Visão geral
 
@@ -26,9 +26,10 @@ flowchart LR
         E4["E4 · Compilação<br/>engines FP16/FP32"] --> E5["E5 · Backend TRT<br/>GPU + equivalência"] --> E6["E6 · Medição<br/>bench e orçamento"] --> E7["E7 · Release<br/>v0.1.0 + guia I1"]
     end
     E3 -- "a partir da E4, na placa" --> E4
+    E7 --> E8["E8 · v0.2.0<br/>forma dinâmica, etapas, dtypes"]
 ```
 
-As etapas E0 a E3 rodam no notebook. Da E4 em diante, o trabalho depende da Jetson, e a E7 entrega a release 0.1.0.
+As etapas E0 a E3 rodam no notebook. Da E4 em diante, o trabalho depende da Jetson, e a E7 entrega a release 0.1.0. A E8 estende o P2 aos demais consumidores da 6c na release 0.2.0.
 
 ## Decisões consolidadas
 
@@ -424,6 +425,74 @@ A E6 transforma os 1.024 MB provisórios em um número medido. A E7 publica a UR
 
 Até a E7, I1 pode testar no notebook instalando do branch principal: `pip install "p2[cpu] @ git+https://github.com/ods-26-2/p2.git"`.
 
+## Etapa E8: v0.2.0, forma dinâmica e várias etapas
+
+**Objetivo:** permitir que os demais consumidores da 6c usem o P2:
+
+- I5: Whisper e VAD
+- I7: OCR em dois estágios
+- I2: ReID com vários recortes por chamada
+- I4 e I8: modelos sem classes
+
+A API (`load`, `infer`, `info`, `release`) não muda, e modelos estáticos, como o YOLO, se comportam exatamente como na 0.1.0. O contrato passa a ser o "Contrato P2 1.1" (`docs/contrato.md`); a spec é a `specs/ativas/009-v020-forma-dinamica-etapas.md`.
+
+**Escopo:**
+
+1. **Etapas como engines separados.** Cada etapa de um modelo é um `engine_ref` próprio, publicado por B5 como um pacote MODEL próprio, por exemplo `whisper-small-encoder-1.0.0` e `whisper-small-decoder-1.0.0`. O laço entre as etapas fica no componente consumidor: decodificação token a token em I5, recorte da placa antes do OCR em I7.
+2. **Forma dinâmica.**
+   - O `metadata.json` ganha o campo opcional `dynamic_shapes`, com `min`, `opt` e `max` por entrada. Exemplo: `"tokens": {"min": [1, 1], "opt": [1, 64], "max": [1, 448]}`
+   - O `p2-build` cria um perfil de otimização do TensorRT com esses limites
+   - No manifesto (`schema_version: 2`), uma dimensão dinâmica aparece como `-1` em `shape`, acompanhada de um bloco `profile` com `min`, `opt` e `max`
+   - O `info` mostra `-1` nas dimensões dinâmicas, e `max_batch` passa a ser a primeira dimensão de `max`
+   - O `infer` aceita qualquer forma dentro do intervalo de `min` a `max`; fora dele, lança `INVALID_INPUT_SHAPE`. As formas de saída são calculadas a cada chamada
+   - Os buffers da GPU são alocados no `load` para a forma `max`, e o `gpu_memory_mb` reflete esse máximo
+3. **Lote maior que 1.** Decorre do item 2. Com a primeira dimensão dinâmica, uma única chamada processa N recortes, como as pessoas para o ReID de I2 ou as placas para o OCR de I7.
+4. **Tipo de dado por tensor.** Cada entrada e saída declara seu `dtype` no manifesto: `float32`, `int32`, `int64` ou `bool`. O `infer` valida o tipo declarado, em vez de exigir `float32`. Isso é necessário para os tokens do decoder do Whisper e para a entrada de taxa de amostragem do VAD, ambos em `int64`.
+5. **Validação do pacote por tarefa.**
+   - O `metadata.json` ganha o campo `task`, com valores `detect`, `classify`, `segment`, `ocr`, `reid`, `speech-encoder`, `speech-decoder`, `vad` ou `other`
+   - A checagem `4 + len(classes)` passa a valer só para `task: detect`
+   - O campo `classes` fica opcional nas demais tarefas
+   - O `input_shape` aceita um dicionário `{nome: forma}` para modelos com várias entradas
+6. **Compatibilidade.** Manifestos com `schema_version: 1` continuam carregando sem mudança. Um pacote sem `task` é tratado como `detect`. Modelos estáticos só com `float32` continuam gerando manifesto v1, legível pela lib 0.1.0.
+
+**Tarefas:**
+
+- [x] Contrato P2 1.1 em `docs/contrato.md`, com exemplos por grupo (Whisper, ReID) e formatos do pacote e do manifesto
+- [x] Tipos públicos da interface: `p2.TensorArray`; `ShapeProfile` e `TensorSpec.profile` no manifesto; `Task` no pacote
+- [ ] Manifesto v2: leitura e gravação (v1 para estático `float32`), `max_batch`
+- [ ] `p2-build`: `task`, `input_shape` em dicionário, `dynamic_shapes`, dtypes, perfil de otimização no TensorRT
+- [ ] `infer`: validação de `dtype` e de forma pelo perfil; saídas no `dtype` do tensor (CPU e TensorRT)
+- [ ] Backend TensorRT: `set_input_shape` por chamada, buffers alocados em `max`, formas de saída calculadas
+- [ ] `p2-build` e `p2-bench` gerando entradas com o `dtype` e a forma do perfil (`max` no teste do build, `opt` no bench)
+- [ ] Testes novos (abaixo); release `v0.2.0`
+
+**Pré-requisitos fora de P2:**
+
+| Com quem | Pré-requisito |
+| --- | --- |
+| B5 e VER-4 | Whisper: exportar encoder e decoder em ONNX separados e decidir se o decoder usa cache KV. Com cache, o decoder tem mais entradas e roda mais rápido |
+| B5 e INV-2 | MediaPipe (I4): não é ONNX. Converter cada submodelo (pose, mãos, rosto) para ONNX antes; cada um vira uma etapa |
+| MOD-1 e B5 | Campos novos: `task` e `dynamic_shapes` são mudanças no pacote MODEL e precisam ser combinadas |
+| Consumidores | Orçamento: com dois ou mais engines no mesmo processo, cada etapa precisa ser medida com `p2-bench` |
+
+**Testes novos:**
+
+| Onde roda | Caso |
+| --- | --- |
+| Notebook | ONNX sintético com eixo dinâmico |
+| Notebook | Entrada `int64` |
+| Notebook | Forma fora do perfil gerando `INVALID_INPUT_SHAPE` |
+| Notebook | Lote de 4 numa chamada |
+| Notebook | Manifesto v1 ainda carregando |
+| Jetson | Whisper tiny (encoder e decoder) transcrevendo um áudio curto de ponta a ponta |
+
+| Saída | Onde fica | Como é usada |
+| --- | --- | --- |
+| `docs/contrato.md` (1.1) | `docs/` e registro de contratos de B1 | Interface comum para I2, I4, I5, I7, I8 e para o pacote MODEL de B5 |
+| Release `v0.2.0` | GitHub `ods-26-2/p2` | `pip install https://github.com/ods-26-2/p2/releases/download/v0.2.0/p2-0.2.0-py3-none-any.whl` |
+
+**Pronto quando:** o Whisper tiny transcrever um áudio curto na Jetson pela API do P2, com encoder e decoder como engines separados, e os testes novos passarem.
+
 ## Testes e verificação
 
 Os testes de CPU usam um ONNX sintético gerado na hora e rodam em qualquer máquina. Os de TensorRT ficam em `tests/jetson/`, marcados com `@pytest.mark.jetson`, e só rodam na placa.
@@ -518,18 +587,24 @@ Nenhuma destas pendências bloqueia o código das etapas E0 a E6. Todas precisam
 | B5 / MOD-1 | Valor oficial do mAP@0,5: 0,936 (email) ou 0,9517 (`metadata.json`) | E5 |
 | B5 / MOD-1 | Medição do mAP com o engine FP16, para registrar a perda junto com a escolha de precisão | Depois da E5 |
 | MOD-1 | Correção no texto enviado: o `app-epi` sai com `[1, 7, 8400]`, não `[1, 84, 8400]` | E1 |
+| B5 / VER-4 | Export do Whisper em encoder e decoder separados; decisão sobre o cache KV | E8 |
+| B5 / INV-2 | Conversão dos submodelos do MediaPipe para ONNX | E8 |
+| MOD-1 / B5 | Acordo sobre os campos novos do pacote MODEL (`task`, `dynamic_shapes`, `input_shape` em dicionário) | E8 |
+| I2, I4, I5, I7, I8 | Leitura do Contrato P2 1.1 e medição de cada etapa com `p2-bench` | E8 |
 
 ## Deixado para depois
 
-Cinco itens ficaram fora do MVP a seu pedido explícito; outros quatro são adiamentos sugeridos pelo plano. Nenhum deles muda a API de E1: todos acrescentam variantes ao manifesto ou etapas novas.
+Cinco itens ficaram fora do MVP a seu pedido explícito; três deles entraram na E8 (v0.2.0). Os demais são adiamentos sugeridos pelo plano. Nenhum deles muda a API de E1: todos acrescentam variantes ao manifesto ou etapas novas.
 
 | Item | Origem | O que envolve |
 | --- | --- | --- |
 | CI no GitHub Actions | **[Adiado a pedido]** | Rodar os testes de CPU a cada push e gerar e anexar o wheel automaticamente a cada tag |
 | INT8 | **[Adiado a pedido]** | Dataset de calibração de B5, variante `INT8` no manifesto e medição da perda de acurácia; avaliar só se o FP16 ficar lento |
-| Forma dinâmica | **[Adiado a pedido]** | Perfis de otimização no `p2-build` e formas com faixa no manifesto e no `info` |
-| Lote maior que 1 | **[Adiado a pedido]** | `max_batch > 1`, perfis no `p2-build` e validação da primeira dimensão no `infer` |
-| Modelos com várias etapas | **[Adiado a pedido]** | Whisper de I5 (encoder e decoder) e OCR em dois estágios de I7: um `engine_ref` por etapa ou vários engines por `engine_ref` |
+| Forma dinâmica | **[Em andamento na E8]** | Perfis de otimização no `p2-build` e formas com faixa no manifesto e no `info` |
+| Lote maior que 1 | **[Em andamento na E8]** | Primeira dimensão dinâmica; `max_batch` = `max[0]` |
+| Modelos com várias etapas | **[Em andamento na E8]** | Um `engine_ref` por etapa (Whisper de I5, OCR de I7) |
+| Vários perfis por engine | [Sugerido para depois] | Mais de um perfil de otimização (por exemplo lote 1 e lote 16) e escolha do perfil no `infer` |
+| Tensores residentes na GPU | [Sugerido para depois] | Manter tensores na GPU entre chamadas (cache KV do decoder do Whisper) sem copiar para a CPU; exige função nova, fora da 6c |
 | Carregamento sob demanda | [Sugerido para depois] | Política de quais modelos ficam residentes, a partir dos números de E6 |
 | Telemetria do dispositivo | [Sugerido para depois] | Expor temperatura, clock e memória da placa, que a 6c permite a P2 sem virar pipeline gráfico |
 | Orçamento das outras builds | [Sugerido para depois] | Medir cada modelo novo de B5 com `p2-bench` e acrescentar linhas em `docs/orcamento.md` |

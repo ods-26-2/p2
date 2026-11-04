@@ -43,6 +43,7 @@ specs/
    - Mudança trivial (typo, formatação, renomear variável local, ajuste de mensagem/log) → executar sem spec; se tocar símbolo listado em algum mapa de código, atualizar a linha.
    - Qualquer outra mudança de código → seguir os passos abaixo.
 2. **Localizar contexto pelo INDEX**: cruzar arquivos, áreas e termos do pedido com as colunas `Escopo` e `Tags`.
+   - Revisar "Pendências abertas" do INDEX: avisar o usuário quando o pedido tocar, depender ou destravar uma pendência.
    - Ler toda spec **ativa** relacionada.
    - Ler spec **fechada** apenas se seu escopo cobre arquivos que serão alterados ou se suas regras se aplicam.
    - Não ler specs sem relação.
@@ -120,6 +121,7 @@ Vale quando o Claude Code está em modo auto ou o usuário pede explicitamente p
 - Uma linha por spec: `ID | Título | Estado | Escopo (paths/globs) | Tags | Resumo (≤ 15 palavras)`.
 - Ativas primeiro, depois fechadas em ordem decrescente de ID.
 - Incrementar `Próximo ID` ao criar uma spec.
+- Manter "Pendências abertas" atualizada: acrescentar o que surgir, remover o que for concluído, atualizar a data.
 
 ## 9. Economia de contexto
 

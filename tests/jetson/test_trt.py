@@ -67,7 +67,9 @@ def test_default_is_fp16_on_gpu() -> None:
     assert info["precision"] == "FP16"
     assert info["engine_version"] == f"{ENGINE_REF}-fp16"
     assert outputs[OUTPUT_NAME].shape == OUTPUT_SHAPE
-    np.testing.assert_allclose(outputs[OUTPUT_NAME], _expected(2.0), atol=FP16_TOLERANCE)
+    np.testing.assert_allclose(
+        np.asarray(outputs[OUTPUT_NAME], dtype=np.float32), _expected(2.0), atol=FP16_TOLERANCE
+    )
     assert stats["gpu_memory_mb"] > 0.0
     assert stats["latency_ms"] > 0.0
 
@@ -77,7 +79,9 @@ def test_fp32_on_gpu() -> None:
     with p2.load(ENGINE_REF, {"precision": "FP32"}) as handle:
         assert p2.info(handle)["engine_version"] == f"{ENGINE_REF}-fp32"
         outputs, stats = p2.infer(handle, {INPUT_NAME: _input(3.0)})
-    np.testing.assert_allclose(outputs[OUTPUT_NAME], _expected(3.0), rtol=1e-6)
+    np.testing.assert_allclose(
+        np.asarray(outputs[OUTPUT_NAME], dtype=np.float32), _expected(3.0), rtol=1e-6
+    )
     assert stats["gpu_memory_mb"] > 0.0
 
 
@@ -95,7 +99,9 @@ def test_outputs_are_copies_on_gpu() -> None:
         first, _ = p2.infer(handle, _input())
         first[OUTPUT_NAME][...] = -1.0
         second, _ = p2.infer(handle, _input())
-    np.testing.assert_allclose(second[OUTPUT_NAME], _expected(0.0), rtol=1e-6)
+    np.testing.assert_allclose(
+        np.asarray(second[OUTPUT_NAME], dtype=np.float32), _expected(0.0), rtol=1e-6
+    )
 
 
 @pytest.mark.usefixtures("trt_env")
@@ -107,7 +113,11 @@ def test_concurrent_calls_on_gpu() -> None:
             try:
                 for _ in range(10):
                     outputs, _ = p2.infer(handle, _input(value))
-                    np.testing.assert_allclose(outputs[OUTPUT_NAME], _expected(value), rtol=1e-6)
+                    np.testing.assert_allclose(
+                        np.asarray(outputs[OUTPUT_NAME], dtype=np.float32),
+                        _expected(value),
+                        rtol=1e-6,
+                    )
             except (AssertionError, p2.P2Error) as err:
                 errors.append(err)
 

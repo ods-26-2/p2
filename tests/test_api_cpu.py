@@ -32,7 +32,7 @@ def test_full_cycle() -> None:
     assert set(outputs) == {OUTPUT_NAME}
     assert outputs[OUTPUT_NAME].shape == OUTPUT_SHAPE
     assert outputs[OUTPUT_NAME].dtype == np.float32
-    np.testing.assert_allclose(outputs[OUTPUT_NAME], _expected(2.0))
+    np.testing.assert_allclose(np.asarray(outputs[OUTPUT_NAME], dtype=np.float32), _expected(2.0))
     assert set(stats) == {"latency_ms", "gpu_memory_mb"}
     assert stats["latency_ms"] > 0.0
     assert stats["gpu_memory_mb"] == 0.0
@@ -80,7 +80,9 @@ def test_non_contiguous_input_is_accepted() -> None:
     assert not strided.flags["C_CONTIGUOUS"]
     with p2.load(ENGINE_REF) as handle:
         outputs, _ = p2.infer(handle, strided)
-        np.testing.assert_allclose(outputs[OUTPUT_NAME], _expected(3.0))
+        np.testing.assert_allclose(
+            np.asarray(outputs[OUTPUT_NAME], dtype=np.float32), _expected(3.0)
+        )
 
 
 @pytest.mark.usefixtures("synth_engine")
@@ -89,7 +91,9 @@ def test_outputs_are_copies() -> None:
         first, _ = p2.infer(handle, _input())
         first[OUTPUT_NAME][...] = -1.0
         second, _ = p2.infer(handle, _input())
-        np.testing.assert_allclose(second[OUTPUT_NAME], _expected(0.0))
+        np.testing.assert_allclose(
+            np.asarray(second[OUTPUT_NAME], dtype=np.float32), _expected(0.0)
+        )
 
 
 @pytest.mark.usefixtures("synth_engine")
@@ -121,7 +125,9 @@ def test_concurrent_calls_on_same_handle() -> None:
             try:
                 for _ in range(CALLS_PER_THREAD):
                     outputs, _ = p2.infer(handle, _input(value))
-                    np.testing.assert_allclose(outputs[OUTPUT_NAME], _expected(value))
+                    np.testing.assert_allclose(
+                        np.asarray(outputs[OUTPUT_NAME], dtype=np.float32), _expected(value)
+                    )
             except (AssertionError, p2.P2Error) as err:
                 errors.append(err)
 
@@ -196,10 +202,11 @@ def test_public_exports() -> None:
         "Handle",
         "InferStats",
         "P2Error",
+        "TensorArray",
         "__version__",
         "infer",
         "info",
         "load",
         "release",
     }
-    assert p2.__version__ == "0.1.0"
+    assert p2.__version__ == "0.2.0.dev0"

@@ -3,6 +3,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Final, Literal, TypeAlias, TypedDict
 
+from typing_extensions import NotRequired
+
 from p2.errors import ErrorCode, P2BaseError, P2Error
 
 Precision: TypeAlias = Literal["FP16", "FP32"]
@@ -11,11 +13,20 @@ SCHEMA_VERSION: Final = 1
 MANIFEST_FILE: Final = "manifest.json"
 ENGINE_DIR_ENV: Final = "P2_ENGINE_DIR"
 DEFAULT_ENGINE_ROOT: Final = Path("/opt/ods/engines")
+DYNAMIC_DIM: Final = -1
+TENSOR_DTYPES: Final = frozenset({"float32", "int32", "int64", "bool"})
+
+
+class ShapeProfile(TypedDict):
+    min: list[int]
+    opt: list[int]
+    max: list[int]
 
 
 class TensorSpec(TypedDict):
     shape: list[int]
     dtype: str
+    profile: NotRequired[ShapeProfile]
 
 
 class SourceInfo(TypedDict):

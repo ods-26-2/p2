@@ -12,7 +12,8 @@ import p2
 with p2.load("yolo11n-1.0.0") as h:
     out, stats = p2.infer(h, np.zeros((1, 3, 640, 640), dtype=np.float32))
 ```
-- Contrato da API para I1 e MOD-1: [docs/contrato.md](docs/contrato.md); guia de integração: [docs/guia-integracao.md](docs/guia-integracao.md)
+- Contrato da API (P2 1.1, lib 0.2.x; a 0.1.0 implementa a 1.0): [docs/contrato.md](docs/contrato.md); guia de integração do I1: [docs/guia-integracao.md](docs/guia-integracao.md)
+- Em desenvolvimento na branch `dev-v0.2.0`: forma dinâmica, lote, dtypes por tensor e modelos com várias etapas ([spec 009](specs/ativas/009-v020-forma-dinamica-etapas.md))
 - Exemplo completo (pré e pós-processamento YOLO): [examples/yolo_demo.py](examples/yolo_demo.py)
 - Plano completo: [plano-p2.md](plano-p2.md); decisões: [docs/decisoes.md](docs/decisoes.md)
 

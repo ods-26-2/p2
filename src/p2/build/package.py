@@ -2,6 +2,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Final
 
@@ -18,6 +19,21 @@ SOURCE_PRECISION: Final = "FP32"
 BOX_ROWS: Final = 4
 CLASS_AXIS: Final = 1
 HASH_CHUNK_BYTES: Final = 1 << 20
+
+
+class Task(str, Enum):
+    DETECT = "detect"
+    CLASSIFY = "classify"
+    SEGMENT = "segment"
+    OCR = "ocr"
+    REID = "reid"
+    SPEECH_ENCODER = "speech-encoder"
+    SPEECH_DECODER = "speech-decoder"
+    VAD = "vad"
+    OTHER = "other"
+
+
+DEFAULT_TASK: Final = Task.DETECT
 
 
 @dataclass(frozen=True, slots=True)
