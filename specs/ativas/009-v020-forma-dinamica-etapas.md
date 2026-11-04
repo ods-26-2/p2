@@ -51,11 +51,12 @@
 - D7 [assumida] `input_shape` obrigatório em todas as tasks — conferência explícita com o ONNX
 - D8 [assumida] I/O com outro dtype (float16, uint8 etc.) → `p2-build` recusa — conjunto fechado do R9
 - D9 [assumida] saída com forma dependente dos dados (ex.: `NonZero`) não suportada → `ENGINE_NOT_FOUND` no `load` TRT
-- D10 [assumida] versão `0.2.0.dev0` na `dev-v0.2.0` até a implementação
+- D10 [assumida] versão `0.2.0.dev0` na `dev-v0.2.0` até a implementação [substituída por D16]
 - D11 [assumida] tipos do R15 entram já, sem uso em runtime — exceção a "sem abstrações especulativas": pedido explícito de interface
 - D12 [assumida] implementação adiada; rascunho incompleto em `git stash` "rascunho da implementação 0.2.0"
 - D13 [assumida] pendências centralizadas no INDEX (sempre carregado) + regra no CLAUDE.md — pedido do usuário
 - D14 [assumida] smoke do `p2-build` na forma `max`; `p2-bench` na forma `opt`, lendo o manifesto (float aleatório; int e bool zerados) — `info` não tem dtype nem perfil
+- D16 [aprovada] pré-release `v0.2.0a1` com a interface (comportamento da 0.1.0); `v0.2.0` final só com o Whisper funcionando; `main` avança junto — escolha do usuário
 - D15 [assumida] erros de pacote (perfil, task, dtype, input_shape) → `BuildError`, exit 1, mensagem em português, sem gravar nada (001/RG4)
 
 ## Tarefas
@@ -70,6 +71,7 @@
 - [ ] T9 (aguarda decisão): smoke e `p2-bench` com formas e dtypes (D14)
 - [ ] T10 (aguarda decisão): testes do R16 no notebook; versões Jetson dos testes
 - [ ] T11 (usuário, Jetson; depende de B5/VER-4): Whisper tiny de ponta a ponta
+- [x] T13: pré-release `v0.2.0a1` (D16)
 - [ ] T12 (externo, com confirmação): release `v0.2.0`
 
 ## Mapa de código
@@ -98,3 +100,4 @@
 ## Log
 - 2026-11-04: criada (modo auto) a partir do texto do usuário ("v0.1.1" → v0.2.0); escopo reduzido pelo usuário a "interface apenas"; rascunho da implementação guardado no stash (D12)
 - 2026-11-04: T1–T4: contrato 1.1, plano E8, tipos públicos, decisões, pendências no INDEX; pytest 213 passed, 9 skipped (219/3 com models/yolo11n.onnx); mypy strict 45 arquivos; ruff ok; nada commitado
+- 2026-11-04: T13: versão 0.2.0a1; wheel p2-0.2.0a1-py3-none-any.whl sha256 6c9935cf…bd3036d, 19 módulos, sem tests/scripts/examples/assets; venv limpo [cpu] ok; pytest 215 passed, 10 skipped; mypy e ruff ok; commit 990b3da + merge bcbbd37 na develop

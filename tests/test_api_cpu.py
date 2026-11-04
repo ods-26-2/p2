@@ -209,4 +209,4 @@ def test_public_exports() -> None:
         "load",
         "release",
     }
-    assert p2.__version__ == "0.2.0.dev0"
+    assert p2.__version__ == "0.2.0a1"
