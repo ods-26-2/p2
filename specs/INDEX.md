@@ -26,7 +26,7 @@ Próximo ID: 010
 
 ## Pendências abertas
 
-Atualizado em 2026-11-04. Ler antes de qualquer alteração; avisar o usuário quando o pedido tocar ou destravar uma pendência.
+Atualizado em 2026-11-04 (pré-release v0.2.0a1 publicada). Ler antes de qualquer alteração; avisar o usuário quando o pedido tocar ou destravar uma pendência.
 
 ### v0.2.0 (009, branch `dev-v0.2.0`)
 - Implementação aguardando decisão do usuário: 009/T5–T10 (manifesto v2, pacote por `task`, `infer` com dtype/perfil, TRT dinâmico, smoke/bench, testes). Rascunho incompleto em `git stash` "rascunho da implementação 0.2.0"
