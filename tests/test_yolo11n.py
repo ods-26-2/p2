@@ -99,7 +99,7 @@ def test_detects_person_in_bus_image_on_cpu() -> None:
     boxed = letterbox(image.astype(np.uint8))
     with p2.load(ENGINE_REF) as handle:
         outputs, _ = p2.infer(handle, boxed.tensor)
-    detections = detect(outputs["output0"])
+    detections = detect(np.asarray(outputs["output0"], dtype=np.float32))
     people = detections.scores[detections.classes == PERSON]
     assert people.size > 0
     assert float(people.max()) >= MIN_PERSON_CONF

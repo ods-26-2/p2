@@ -70,7 +70,7 @@
 - def parse_manifest(raw: object) -> Manifest: narrowing completo, schema_version 1 [R2]
 
 ### src/p2/backends/base.py
-- FloatArray: TypeAlias = NDArray[float32]
+- FloatArray: TypeAlias = NDArray[float32] (→ 009: + TensorArray)
 - class Session(Protocol): memory_mb, run(inputs) -> Mapping[str, FloatArray], close() [D8]
 - class Backend(Protocol): default_precision, open(manifest, directory, precision) -> Session
 
@@ -81,16 +81,16 @@
 
 ### src/p2/handle.py
 - class EngineInfo(TypedDict), class InferStats(TypedDict) [R7, R8, D9]
-- class Handle: trava, released, input_shapes(), info() (cópia), run() (copia saídas), release() idempotente, ensure_open(), with [R8, R9, D8]
+- class Handle: trava, released, input_shapes(), info() (cópia), run() (copia saídas), release() idempotente, ensure_open(), with [R8, R9, D8] (→ 009: run → `dict[str, TensorArray]`)
 
 ### src/p2/api.py
 - def load(engine_ref: str, options: Mapping[str, object] | None = None) -> Handle [R3, R5, D6]
-- def infer(handle: Handle, input: InferInput) -> tuple[dict[str, FloatArray], InferStats]: valida, mede, copia [R6, R7]
+- def infer(handle: Handle, input: InferInput) -> tuple[dict[str, FloatArray], InferStats]: valida, mede, copia [R6, R7] (→ 009: retorno `dict[str, TensorArray]`)
 - def info(handle) -> EngineInfo; def release(handle) -> None [R8, R9]
 - def select_backend(env: Mapping[str, str]) -> Backend: P2_BACKEND; import tardio do ORT [R4, D3, D4, D5, RG1] (→ 006: automático TRT, D4 substituída)
 
 ### src/p2/__init__.py
-- exporta API, P2Error, ErrorCode, Handle, EngineInfo, InferStats, `__version__` [R10]
+- exporta API, P2Error, ErrorCode, Handle, EngineInfo, InferStats, `__version__` [R10] (→ 009: + TensorArray)
 
 ### tests/
 - conftest.py: fixtures `engine_root`, `synth_engine` [D12]

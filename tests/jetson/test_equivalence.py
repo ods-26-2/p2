@@ -63,7 +63,10 @@ def _run(
     monkeypatch.setenv(BACKEND_ENV, backend)
     with p2.load(engine_ref, {"precision": precision}) as handle:
         (output_name,) = p2.info(handle)["output_shape"]
-        return [detect(p2.infer(handle, tensor)[0][output_name]) for tensor in tensors]
+        return [
+            detect(np.asarray(p2.infer(handle, tensor)[0][output_name], dtype=np.float32))
+            for tensor in tensors
+        ]
 
 
 def test_cpu_trt_fp32_trt_fp16_are_equivalent(

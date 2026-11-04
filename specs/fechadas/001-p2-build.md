@@ -83,14 +83,14 @@
 ### src/p2/manifest.py
 - Precision: TypeAlias = Literal["FP16", "FP32"]
 - SCHEMA_VERSION = 1; MANIFEST_FILE = "manifest.json"; ENGINE_DIR_ENV = "P2_ENGINE_DIR"; DEFAULT_ENGINE_ROOT = /opt/ods/engines (todas Final) [R7, R10]
-- TypedDicts TensorSpec, SourceInfo, VariantInfo, BuildInfo, Manifest: formato do plano [R10]
+- TypedDicts TensorSpec, SourceInfo, VariantInfo, BuildInfo, Manifest: formato do plano [R10] (→ 009: + ShapeProfile, TensorSpec.profile, DYNAMIC_DIM, TENSOR_DTYPES)
 - PlatformInfo(TypedDict, total=False): vazio no --cpu-only [R9]
 - Manifest.variants: dict[Precision, VariantInfo], vazio no --cpu-only [R9]
 - def resolve_engine_root(override: Path | None, env: Mapping[str, str]) -> Path: override > env não vazio > padrão [R7]
 - def write_manifest(manifest: Manifest, directory: Path) -> Path: grava JSON indentado UTF-8 [R10] (→ 005: + leitura)
 
 ### src/p2/build/package.py
-- METADATA_FILE = "metadata.json"; SOURCE_PRECISION = "FP32"; BOX_ROWS = 4; CLASS_AXIS = 1 (Final)
+- METADATA_FILE = "metadata.json"; SOURCE_PRECISION = "FP32"; BOX_ROWS = 4; CLASS_AXIS = 1 (Final) (→ 009: + Task, DEFAULT_TASK)
 - class ModelPackage (frozen, slots): root, metadata_path, onnx_path, engine_ref, sha256 (minúsculo), input_shape: tuple[int, ...], classes: tuple[str, ...] [R1, R2]
 - class OnnxIO (frozen, slots): inputs/outputs: dict[str, TensorSpec] [R5, R6]
 - def read_package(root: Path) -> ModelPackage: lê e valida metadata, exige FP32 [R1, R2, R4, D10]

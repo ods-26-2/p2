@@ -6,7 +6,7 @@ from typing import TypedDict
 import numpy as np
 from typing_extensions import Self, override
 
-from p2.backends.base import FloatArray, Session
+from p2.backends.base import FloatArray, Session, TensorArray
 from p2.manifest import Precision
 
 
@@ -57,7 +57,7 @@ class Handle:
             "max_batch": self._info["max_batch"],
         }
 
-    def run(self, inputs: Mapping[str, FloatArray]) -> dict[str, FloatArray]:
+    def run(self, inputs: Mapping[str, FloatArray]) -> dict[str, TensorArray]:
         with self._lock:
             self.ensure_open()
             outputs = self._session.run(inputs)

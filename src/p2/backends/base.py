@@ -8,6 +8,7 @@ import numpy.typing as npt
 from p2.manifest import Manifest, Precision
 
 FloatArray: TypeAlias = npt.NDArray[np.float32]
+TensorArray: TypeAlias = npt.NDArray[np.generic]
 
 
 class Session(Protocol):

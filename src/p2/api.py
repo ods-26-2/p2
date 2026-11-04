@@ -7,7 +7,7 @@ from typing import Final, TypeAlias
 import numpy as np
 import numpy.typing as npt
 
-from p2.backends.base import Backend, FloatArray
+from p2.backends.base import Backend, FloatArray, TensorArray
 from p2.errors import ErrorCode, P2Error
 from p2.handle import EngineInfo, Handle, InferStats
 from p2.manifest import Manifest, Precision, as_precision, engine_dir, read_manifest
@@ -40,7 +40,7 @@ def load(engine_ref: str, options: Mapping[str, object] | None = None) -> Handle
 def infer(
     handle: Handle,
     input: InferInput,
-) -> tuple[dict[str, FloatArray], InferStats]:
+) -> tuple[dict[str, TensorArray], InferStats]:
     started = time.perf_counter()
     handle.ensure_open()
     feeds = _normalize_input(input, handle.input_shapes())

@@ -139,7 +139,8 @@ def detect(
     outputs, stats = p2.infer(handle, {input_name: boxed.tensor})
     logger.info("infer em %.1f ms (%s)", stats["latency_ms"], info["engine_version"])
     height, width = image_bgr.shape[:2]
-    return postprocess(outputs[output_name], boxed, (height, width), class_names, thresholds)
+    output = np.asarray(outputs[output_name], dtype=np.float32)
+    return postprocess(output, boxed, (height, width), class_names, thresholds)
 
 
 def class_names_for(engine_ref: str) -> list[str]:

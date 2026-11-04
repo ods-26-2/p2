@@ -64,7 +64,7 @@ Decisões fechadas do projeto. Qualquer dúvida nova durante a implementação v
 | Tipos públicos | `p2.Handle`, `p2.EngineInfo` e `p2.InferStats` exportados para anotação | 004/D2 |
 | `P2Error.detail` | Texto em português; `str(e)` é `"CODE: detalhe"` | 004/D3 |
 | Handle liberado | `infer`/`info` depois do `release` geram `ValueError`; `release` repetido não faz nada | 004/D4 |
-| Versão do contrato | "Contrato P2 1.0", válido para a lib 0.1.x | 004/D5 |
+| Versão do contrato | "Contrato P2 1.0", válido para a lib 0.1.x; "Contrato P2 1.1" para a 0.2.x, no mesmo arquivo (a 1.0 fica na tag `v0.1.0`) | 004/D5, 009/D1 |
 | IR do ONNX | Pacote MODEL com ONNX IR ≤ 10; ONNX gerado nos testes e no `check_jetson.py` fixa `ir_version=10` | 004/D6 |
 | `import p2` | Não importa `onnxruntime` nem `tensorrt`; o backend é importado só no `load` | 005/RG1 |
 | Backend automático | TensorRT se `tensorrt` e `cuda-python` importáveis, senão CPU; `P2_BACKEND=trt` sem as libs gera `ENGINE_NOT_FOUND` | 006/R1 |
@@ -76,3 +76,11 @@ Decisões fechadas do projeto. Qualquer dúvida nova durante a implementação v
 | `platform.tensorrt` | 3 componentes (`10.3.0.30` → `10.3.0`) | 002/D4 |
 | `platform` incompleto | `jetpack`, `l4t` ou `cuda` ilegíveis são omitidos com aviso; `tensorrt` sempre presente | 002/D5 |
 | ONNX diferente do manifesto | Entradas ou saídas com nomes diferentes geram `ENGINE_NOT_FOUND` no `load` | 005/D10 |
+| Etapas de um modelo | Um `engine_ref` e um pacote MODEL por etapa; o laço entre etapas fica no consumidor | 009/R1 |
+| `info` na 0.2.x | Mantém os 5 campos da 6c; `-1` nos eixos dinâmicos; perfis e dtypes só no `manifest.json` | 009/D2 |
+| Tipo de retorno do `infer` | `dict[str, p2.TensorArray]` (`NDArray[np.generic]`); o consumidor converte com `np.asarray(x, dtype=...)` | 009/D3 |
+| Versão do manifesto | v1 para modelo estático só com `float32` (legível pela lib 0.1.0); v2 com `-1`, `profile` e dtypes | 009/D4 |
+| `max_batch` | Maior primeira dimensão entre as entradas (`max[0]` do perfil ou forma fixa); sem entrada com eixo, 1 | 009/D5 |
+| Tensores escalares | `shape: []` (por exemplo a taxa de amostragem do VAD) | 009/D6 |
+| dtypes aceitos | `float32`, `int32`, `int64`, `bool`; outros na I/O são recusados pelo `p2-build` | 009/R9, 009/D8 |
+| Saída com forma dependente dos dados | Não suportada; `ENGINE_NOT_FOUND` no `load` | 009/D9 |

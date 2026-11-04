@@ -42,7 +42,7 @@
 ## Mapa de código
 
 ### docs/contrato.md
-- Contrato P2 1.0: instalação, API, erros, exemplos app-epi, pacote MODEL, manifesto [R1–R6, D1–D5]
+- Contrato P2 1.0: instalação, API, erros, exemplos app-epi, pacote MODEL, manifesto [R1–R6, D1–D5] (→ 009: Contrato P2 1.1; a 1.0 fica na tag v0.1.0)
 
 ### README.md (de 003), docs/decisoes.md (de 003)
 - link para o contrato; linhas 004/D1–D5 [T2]
@@ -54,3 +54,4 @@
 - 2026-10-30: criada (modo auto)
 - 2026-10-30: T1–T2: contrato conferido contra plano-p2.md, decisoes.md e o p2-build atual (dtype só registrado, não validado)
 - 2026-10-30: requisito de IR ≤ 10 acrescentado ao contrato (D6), antes do envio
+- 2026-11-04: contrato passou para a 1.1 na 009 (RG1); o envio da T3 deve usar a 1.1
