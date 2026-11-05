@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import json
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -10,7 +11,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from p2.cli.build import main as p2_build
+import onnx
+
+from p2.manifest import resolve_engine_root
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +33,8 @@ MAX_TOKENS: Final = 448
 OPT_TOKENS: Final = 64
 ENCODER_ONNX: Final = "whisper-small-encoder.onnx"
 DECODER_ONNX: Final = "whisper-small-decoder.onnx"
+DECODER_LOGITS_ONNX: Final = "whisper-small-decoder-logits.onnx"
+DECODER_OUTPUTS: Final = frozenset({"logits"})
 TOKENIZER_FILE: Final = "whisper-tokenizer.json"
 SAMPLE_FILE: Final = "whisper-sample.wav"
 RAW_SAMPLE_FILE: Final = "whisper-sample-44k.wav"
@@ -65,7 +70,7 @@ ENCODER: Final = Stage(
 DECODER: Final = Stage(
     artifact_id="whisper-small-decoder",
     task="speech-decoder",
-    onnx_name=DECODER_ONNX,
+    onnx_name=DECODER_LOGITS_ONNX,
     input_shape={"input_ids": [-1, -1], "encoder_hidden_states": [-1, -1, 768]},
     dynamic_shapes={
         "input_ids": {"min": [1, 1], "opt": [1, OPT_TOKENS], "max": [1, MAX_TOKENS]},
@@ -128,6 +133,18 @@ def convert_sample(directory: Path) -> None:
     subprocess.run((*command, "-c:a", "pcm_s16le", str(target)), check=True)
 
 
+def keep_outputs(source: Path, target: Path, names: frozenset[str]) -> Path:
+    if target.is_file():
+        return target
+    logger.info("removendo as saídas sem uso de %s", source.name)
+    model = onnx.load(str(source))
+    kept = [output for output in model.graph.output if output.name in names]
+    del model.graph.output[:]
+    model.graph.output.extend(kept)
+    onnx.save(model, str(target))
+    return target
+
+
 def write_package(directory: Path, stage: Stage, onnx_path: Path) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
     link = directory / onnx_path.name
@@ -157,6 +174,16 @@ def build_arguments(package: Path, args: argparse.Namespace) -> list[str]:
     return arguments
 
 
+def compile_stage(package: Path, stage: Stage, args: argparse.Namespace) -> int:
+    engine_ref = f"{stage.artifact_id}-{ARTIFACT_VERSION}"
+    target = resolve_engine_root(args.engine_dir, os.environ) / engine_ref
+    if target.exists() and not args.force:
+        logger.info("já compilado: %s (use --force para refazer)", target)
+        return EXIT_OK
+    command = (sys.executable, "-m", "p2.cli.build", *build_arguments(package, args))
+    return subprocess.run(command, check=False).returncode
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(description="Baixa, empacota e compila o Whisper-small.")
@@ -174,6 +201,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         for remote in FILES:
             download(remote, models_dir)
         convert_sample(models_dir)
+        keep_outputs(models_dir / DECODER_ONNX, models_dir / DECODER_LOGITS_ONNX, DECODER_OUTPUTS)
     except (OSError, ValueError, subprocess.CalledProcessError) as err:
         logger.error("%s", err)
         return EXIT_ERROR
@@ -181,7 +209,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         package = write_package(
             models_dir / "whisper-packages" / name, stage, models_dir / stage.onnx_name
         )
-        if p2_build(build_arguments(package, args)) != EXIT_OK:
+        if compile_stage(package, stage, args) != EXIT_OK:
             return EXIT_ERROR
     logger.info("pronto: python3 examples/whisper_demo.py <audio.wav> --language pt")
     return EXIT_OK

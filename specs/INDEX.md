@@ -30,7 +30,7 @@ Próximo ID: 010
 Atualizado em 2026-11-05 (pré-release v0.2.0a3 publicada). Ler antes de qualquer alteração; avisar o usuário quando o pedido tocar ou destravar uma pendência.
 
 ### v0.2.0 (009, branch `dev-v0.2.0`)
-- Implementação 009/T5–T10 e T15–T18 na `v0.2.0a3`, validada na CPU com Whisper-small real; caminho TensorRT dinâmico nunca executado; engine do Whisper ainda não compilado. `git stash` "rascunho da implementação 0.2.0" pode ser descartado
+- Implementação 009/T5–T10 e T15–T18 na `v0.2.0a3`, validada na CPU com Whisper-small real; na Jetson o encoder FP16 compilou e passou no teste; decoder falhou por memória, nova tentativa com 009/T20 pendente. `git stash` "rascunho da implementação 0.2.0" pode ser descartado
 - Confirmar 009/D17: `infer` do Whisper recebe log-mel `float32 [1, 80, 3000]`, áudio → mel no I5
 - Decisões assumidas a revisar: 009/D1–D15, sobretudo D2 (`info` sem perfis), D3 (retorno `TensorArray`), D4 (manifesto v1 para estático); 009/D17, D18
 - Enviar o Contrato P2 1.1 a I2, I4, I5, I7, I8, MOD-1, B5 e B1 (substitui o envio da 1.0 em 004/T3)

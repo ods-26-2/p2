@@ -67,6 +67,7 @@
 - D18 [assumida] `whisper_demo.py` com mel em numpy e BPE próprio, sem dependência nova — referência copiável para o I5
 - D19 [rejeitada] aviso de NaN/infinito no smoke do `p2-build` → removido — o P2 não faz mais do que o planejado (pedido do usuário)
 - D20 [aprovada] ponte áudio → texto como exemplo no P2, para o I5 copiar; fora da lib — escolha do usuário (opção B)
+- D21 [assumida] poda das 48 saídas `present.*` no exemplo, não na lib — decoder sem cache não as usa; economiza memória na Orin Nano e cópia por token
 - D15 [assumida] erros de pacote (perfil, task, dtype, input_shape) → `BuildError`, exit 1, mensagem em português, sem gravar nada (001/RG4)
 
 ## Tarefas
@@ -81,6 +82,7 @@
 - [x] T9: smoke e `p2-bench` com formas e dtypes (D14)
 - [x] T10: testes do R16 no notebook; versões Jetson dos testes
 - [x] T15: `examples/whisper_demo.py`, pesos externos (R19, R20, D17, D18)
+- [x] T20: `whisper_setup.py`: decoder só com `logits`, 1 processo por etapa, pula engine pronto (R21, D21)
 - [x] T19: pré-release `v0.2.0a3` com a implementação (D16)
 - [x] T18: `examples/whisper_example.py`, testes e guia rápido (R22, D20)
 - [x] T17: `examples/whisper_setup.py`, testes e guia rápido (R21)
@@ -131,7 +133,7 @@
 - whisper_demo.generate(...) -> (tokens, probabilidades) [R22]
 
 ### examples/whisper_setup.py, docs/guia-rapido.md (de 008)
-- class RemoteFile, Stage; ENCODER, DECODER, FILES (Final); download, convert_sample, write_package(directory, stage, onnx_path) -> Path, main [R21]
+- class RemoteFile, Stage; ENCODER, DECODER, FILES (Final); download, convert_sample, keep_outputs(source, target, names) -> Path, write_package(directory, stage, onnx_path) -> Path, compile_stage(package, stage, args) -> int, main [R21, D21]
 
 ### tests/
 - helpers/dynamic_package.py: ONNX com eixos dinâmicos, int64, bool, escalar [R16]
@@ -164,3 +166,5 @@
 - 2026-11-05: auditoria de escopo de `src/p2`: sem lógica de Whisper, sem dependência nova, API igual + `TensorArray`; removido warn_non_finite (D19); extras mantidos: R18 (necessário para compilar) e R19 (recusa); engine do Whisper ainda não compilado
 - 2026-11-05: T19: versão 0.2.0a3; wheel sha256 9bb07c2a…5a4c45, 19 módulos; venv limpo [cpu] ok; com modelos reais pytest 310 passed, 4 skipped; mypy e ruff ok
 - 2026-11-05: pré-release `v0.2.0a3` publicada via `gh` (--prerelease); download com sha256 9bb07c2a…5a4c45; `v0.1.0` segue como Latest
+- 2026-11-05: 1ª execução na Jetson (v0.2.0a3): encoder FP16 compilou e passou no infer de teste; decoder falhou por memória (`CUDA error 2`, 79 MB); aviso de LayerNorm FP16 confirmado
+- 2026-11-05: T20: decoder com 1 saída na CPU: transcrição igual, 18 s → 6,6 s; pytest com modelos 314 passed, 4 skipped; lib sem mudança

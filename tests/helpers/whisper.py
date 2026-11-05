@@ -6,7 +6,7 @@ from helpers.yolo11n import REPO_ROOT
 
 MODELS: Final = REPO_ROOT / "models"
 ENCODER_ONNX: Final = MODELS / whisper_setup.ENCODER_ONNX
-DECODER_ONNX: Final = MODELS / whisper_setup.DECODER_ONNX
+DECODER_ONNX: Final = MODELS / whisper_setup.DECODER_LOGITS_ONNX
 TOKENIZER: Final = MODELS / whisper_setup.TOKENIZER_FILE
 SAMPLE: Final = MODELS / whisper_setup.SAMPLE_FILE
 WHISPER_MISSING: Final = "models/whisper-* ausente; rode examples/whisper_setup.py"
