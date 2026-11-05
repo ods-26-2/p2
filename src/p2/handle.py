@@ -6,8 +6,8 @@ from typing import TypedDict
 import numpy as np
 from typing_extensions import Self, override
 
-from p2.backends.base import FloatArray, Session, TensorArray
-from p2.manifest import Precision
+from p2.backends.base import Session, TensorArray
+from p2.manifest import Precision, TensorSpec
 
 
 class EngineInfo(TypedDict):
@@ -24,9 +24,17 @@ class InferStats(TypedDict):
 
 
 class Handle:
-    def __init__(self, *, engine_ref: str, info: EngineInfo, session: Session) -> None:
+    def __init__(
+        self,
+        *,
+        engine_ref: str,
+        info: EngineInfo,
+        inputs: Mapping[str, TensorSpec],
+        session: Session,
+    ) -> None:
         self._engine_ref = engine_ref
         self._info = info
+        self._inputs = dict(inputs)
         self._session = session
         self._memory_mb = session.memory_mb
         self._lock = threading.Lock()
@@ -47,6 +55,9 @@ class Handle:
     def input_shapes(self) -> dict[str, tuple[int, ...]]:
         return {name: tuple(shape) for name, shape in self._info["input_shape"].items()}
 
+    def input_specs(self) -> Mapping[str, TensorSpec]:
+        return self._inputs
+
     def info(self) -> EngineInfo:
         self.ensure_open()
         return {
@@ -57,11 +68,11 @@ class Handle:
             "max_batch": self._info["max_batch"],
         }
 
-    def run(self, inputs: Mapping[str, FloatArray]) -> dict[str, TensorArray]:
+    def run(self, inputs: Mapping[str, TensorArray]) -> dict[str, TensorArray]:
         with self._lock:
             self.ensure_open()
             outputs = self._session.run(inputs)
-            return {name: np.array(array, dtype=np.float32) for name, array in outputs.items()}
+            return {name: np.array(array, copy=True) for name, array in outputs.items()}
 
     def release(self) -> None:
         with self._lock:

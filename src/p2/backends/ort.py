@@ -6,7 +6,7 @@ import numpy as np
 import onnxruntime as ort
 from onnxruntime.capi import onnxruntime_pybind11_state as ort_state
 
-from p2.backends.base import FloatArray
+from p2.backends.base import TensorArray
 from p2.errors import ErrorCode, P2Error
 from p2.manifest import Manifest, Precision
 
@@ -36,7 +36,7 @@ class OrtSession:
     def memory_mb(self) -> float:
         return 0.0
 
-    def run(self, inputs: Mapping[str, FloatArray]) -> dict[str, FloatArray]:
+    def run(self, inputs: Mapping[str, TensorArray]) -> dict[str, TensorArray]:
         if self._session is None:
             raise P2Error(ErrorCode.RUNTIME_ERROR, "sessão de CPU já encerrada")
         try:
@@ -44,7 +44,7 @@ class OrtSession:
         except ORT_ERRORS as err:
             raise P2Error(ErrorCode.RUNTIME_ERROR, f"falha na execução na CPU: {err}") from err
         return {
-            name: np.asarray(result, dtype=np.float32)
+            name: np.asarray(result)
             for name, result in zip(self._output_names, results, strict=True)
         }
 

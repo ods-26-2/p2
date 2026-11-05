@@ -67,7 +67,7 @@
 - def as_precision(value: object) -> Precision | None [R3]
 - def engine_dir(engine_ref: str, env: Mapping[str, str]) -> Path [R3]
 - def read_manifest(directory: Path) -> Manifest: ausente/ilegível/inválido → ENGINE_NOT_FOUND [R2]
-- def parse_manifest(raw: object) -> Manifest: narrowing completo, schema_version 1 [R2]
+- def parse_manifest(raw: object) -> Manifest: narrowing completo [R2] (→ 009: schema_version 1 e 2)
 
 ### src/p2/backends/base.py
 - FloatArray: TypeAlias = NDArray[float32] (→ 009: + TensorArray)
@@ -81,7 +81,7 @@
 
 ### src/p2/handle.py
 - class EngineInfo(TypedDict), class InferStats(TypedDict) [R7, R8, D9]
-- class Handle: trava, released, input_shapes(), info() (cópia), run() (copia saídas), release() idempotente, ensure_open(), with [R8, R9, D8] (→ 009: run → `dict[str, TensorArray]`)
+- class Handle: trava, released, input_shapes(), info() (cópia), run() (copia saídas), release() idempotente, ensure_open(), with [R8, R9, D8] (→ 009: run → `dict[str, TensorArray]`; + input_specs)
 
 ### src/p2/api.py
 - def load(engine_ref: str, options: Mapping[str, object] | None = None) -> Handle [R3, R5, D6]

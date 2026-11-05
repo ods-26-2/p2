@@ -67,7 +67,7 @@
 
 ### src/p2/backends/trt.py
 - class CollectingLogger(trt.ILogger): erros do TensorRT para mensagens [D9]
-- class DeviceTensor, EngineParts (frozen, slots): buffer de GPU + host; runtime/engine/contexto/logger vivos juntos [R4]
+- class EngineParts (frozen, slots): runtime/engine/contexto/logger vivos juntos [R4] (→ 009: DeviceTensor → DeviceInput, DeviceOutput)
 - class TrtSession: run (MemcpyAsync, execute_async_v3, sync) → RUNTIME_ERROR; close idempotente [R6, R7, D8]
 - class TrtBackend: padrão FP16; open: variante, sha, desserializa, aloca, stream, bind; falha → OUT_OF_MEMORY e libera [R2–R5, D10]
 
