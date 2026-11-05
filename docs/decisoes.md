@@ -84,3 +84,6 @@ Decisões fechadas do projeto. Qualquer dúvida nova durante a implementação v
 | Tensores escalares | `shape: []` (por exemplo a taxa de amostragem do VAD) | 009/D6 |
 | dtypes aceitos | `float32`, `int32`, `int64`, `bool`; outros na I/O são recusados pelo `p2-build` | 009/R9, 009/D8 |
 | Saída com forma dependente dos dados | Não suportada; `ENGINE_NOT_FOUND` no `load` | 009/D9 |
+| Entrada do Whisper | `infer` recebe log-mel `float32 [1, 80, 3000]`; áudio (1D, `float32`, 16 kHz, mono) → mel fica no consumidor | 009/D17 |
+| Eixos com `min == max` | Fixados no ONNX antes do parse do TensorRT | 009/R18 |
+| ONNX com pesos externos | Recusado pelo `p2-build` | 009/R19 |

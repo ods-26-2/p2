@@ -1,15 +1,24 @@
 import hashlib
 import json
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
+from helpers.dynamic_package import DYNAMIC_SHAPES, write_dynamic_package
 from helpers.model_package import ENGINE_REF, write_package
 from p2.build.output import BuildStamp, write_compiled
 from p2.build.package import OnnxIO, read_package, validate_package
 from p2.errors import BuildError
-from p2.manifest import MANIFEST_FILE, Manifest, PlatformInfo, Precision, read_manifest
+from p2.manifest import (
+    MANIFEST_FILE,
+    Manifest,
+    PlatformInfo,
+    Precision,
+    ShapeProfile,
+    read_manifest,
+)
 
 PLATFORM: PlatformInfo = {"jetpack": "6.2.1", "l4t": "36.4.7", "tensorrt": "10.3.0", "cuda": "12.6"}
 STAMP = BuildStamp(built_at=datetime(2026, 10, 30, tzinfo=timezone.utc), tool_version="0.1.0")
@@ -25,12 +34,20 @@ class FakeCompiler:
     ) -> None:
         self.calls: list[tuple[str, str, Precision]] = []
         self.smoke_calls: list[tuple[bool, Precision]] = []
+        self.profiles: list[dict[str, ShapeProfile]] = []
         self._io = io
         self._fail_on = fail_on
         self._smoke_fails_on = smoke_fails_on
 
-    def compile(self, onnx_path: Path, engine_path: Path, precision: Precision) -> OnnxIO:
+    def compile(
+        self,
+        onnx_path: Path,
+        engine_path: Path,
+        precision: Precision,
+        profiles: Mapping[str, ShapeProfile],
+    ) -> OnnxIO:
         self.calls.append((onnx_path.name, engine_path.name, precision))
+        self.profiles.append(dict(profiles))
         if precision == self._fail_on:
             raise BuildError(f"compilação {precision} falhou: erro simulado do TensorRT")
         engine_path.write_bytes(f"engine-{precision}".encode())
@@ -158,3 +175,20 @@ def test_smoke_failure_publishes_nothing(tmp_path: Path) -> None:
     with pytest.raises(BuildError, match="entrada zerada falhou"):
         _write(tmp_path, FakeCompiler(io=io, smoke_fails_on="FP16"))
     assert list((tmp_path / "engines").iterdir()) == []
+
+
+def test_compiler_receives_dynamic_profiles(tmp_path: Path) -> None:
+    package = read_package(write_dynamic_package(tmp_path / "pkg"))
+    io = validate_package(package)
+    compiler = FakeCompiler(io=io)
+    target = write_compiled(
+        package,
+        io,
+        engine_root=tmp_path / "engines",
+        force=False,
+        stamp=STAMP,
+        precisions=("FP16",),
+        compiler=compiler,
+    )
+    assert compiler.profiles == [DYNAMIC_SHAPES]
+    assert read_manifest(target)["inputs"]["x"]["profile"] == DYNAMIC_SHAPES["x"]

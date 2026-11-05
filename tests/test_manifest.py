@@ -8,7 +8,7 @@ from p2.manifest import (
     DEFAULT_ENGINE_ROOT,
     ENGINE_DIR_ENV,
     MANIFEST_FILE,
-    SCHEMA_VERSION,
+    STATIC_SCHEMA_VERSION,
     Manifest,
     ManifestFormatError,
     as_precision,
@@ -22,7 +22,7 @@ from p2.manifest import (
 
 def _cpu_only_manifest() -> Manifest:
     return {
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": STATIC_SCHEMA_VERSION,
         "engine_ref": "yolo11n-1.0.0",
         "source": {
             "onnx_file": "model.onnx",
@@ -118,7 +118,7 @@ def _mutated(path: tuple[str, ...], value: object) -> dict[str, object]:
 @pytest.mark.parametrize(
     ("path", "value", "message"),
     [
-        (("schema_version",), 2, "schema_version 2"),
+        (("schema_version",), 3, "schema_version 3"),
         (("engine_ref",), "", "engine_ref"),
         (("source",), [], "source"),
         (("inputs",), {}, "inputs"),

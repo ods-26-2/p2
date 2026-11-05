@@ -91,16 +91,16 @@
 
 ### src/p2/build/package.py
 - METADATA_FILE = "metadata.json"; SOURCE_PRECISION = "FP32"; BOX_ROWS = 4; CLASS_AXIS = 1 (Final) (→ 009: + Task, DEFAULT_TASK)
-- class ModelPackage (frozen, slots): root, metadata_path, onnx_path, engine_ref, sha256 (minúsculo), input_shape: tuple[int, ...], classes: tuple[str, ...] [R1, R2]
+- class ModelPackage (frozen, slots): root, metadata_path, onnx_path, engine_ref, sha256 (minúsculo), input_shape: tuple[int, ...], classes: tuple[str, ...] [R1, R2] (→ 009: task, dynamic_shapes, input_shape em dicionário)
 - class OnnxIO (frozen, slots): inputs/outputs: dict[str, TensorSpec] [R5, R6]
 - def read_package(root: Path) -> ModelPackage: lê e valida metadata, exige FP32 [R1, R2, R4, D10]
 - def validate_package(package: ModelPackage) -> OnnxIO: arquivo, hash, I/O; sem escrita [R3, R5, R6, RG4]
 - def sha256_file(path: Path) -> str: hash em blocos de 1 MiB [R3]
-- def read_onnx_io(path: Path) -> OnnxIO: `onnx.load` sem dados externos; ignora initializers; dim simbólica → BuildError [R5, D3, D11]
+- def read_onnx_io(path: Path) -> OnnxIO: `onnx.load` sem dados externos; ignora initializers [R5, D3, D11] (→ 009: dim simbólica → -1; pesos externos → BuildError)
 - _require_*: narrowing de `object` do JSON com mensagens em português [R1]
 
 ### src/p2/build/output.py
-- TOOL_NAME = "p2-build"; MAX_BATCH = 1; WORKSPACE_MB = 1024 (Final) [R10]
+- TOOL_NAME = "p2-build"; WORKSPACE_MB = 1024 (Final) [R10] (→ 009: MAX_BATCH removido, `max_batch` calculado)
 - class BuildStamp (frozen, slots): built_at: datetime, tool_version: str [R10]
 - def build_manifest(package, io, *, variants: Mapping[Precision, VariantInfo], platform: PlatformInfo, stamp: BuildStamp) -> Manifest [R10, D12]
 - def write_cpu_only(package, io, *, engine_root: Path, force: bool, stamp: BuildStamp) -> Path: staging + cópia + manifesto vazio [R9] (→ 002: + write_compiled)

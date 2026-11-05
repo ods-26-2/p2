@@ -459,12 +459,13 @@ A API (`load`, `infer`, `info`, `release`) não muda, e modelos estáticos, como
 
 - [x] Contrato P2 1.1 em `docs/contrato.md`, com exemplos por grupo (Whisper, ReID) e formatos do pacote e do manifesto
 - [x] Tipos públicos da interface: `p2.TensorArray`; `ShapeProfile` e `TensorSpec.profile` no manifesto; `Task` no pacote
-- [ ] Manifesto v2: leitura e gravação (v1 para estático `float32`), `max_batch`
-- [ ] `p2-build`: `task`, `input_shape` em dicionário, `dynamic_shapes`, dtypes, perfil de otimização no TensorRT
-- [ ] `infer`: validação de `dtype` e de forma pelo perfil; saídas no `dtype` do tensor (CPU e TensorRT)
-- [ ] Backend TensorRT: `set_input_shape` por chamada, buffers alocados em `max`, formas de saída calculadas
-- [ ] `p2-build` e `p2-bench` gerando entradas com o `dtype` e a forma do perfil (`max` no teste do build, `opt` no bench)
-- [ ] Testes novos (abaixo); release `v0.2.0`
+- [x] Manifesto v2: leitura e gravação (v1 para estático `float32`), `max_batch`
+- [x] `p2-build`: `task`, `input_shape` em dicionário, `dynamic_shapes`, dtypes, perfil de otimização no TensorRT
+- [x] `infer`: validação de `dtype` e de forma pelo perfil; saídas no `dtype` do tensor (CPU e TensorRT)
+- [x] Backend TensorRT: `set_input_shape` por chamada, buffers alocados em `max`, formas de saída calculadas (falta validar na placa)
+- [x] `p2-build` e `p2-bench` gerando entradas com o `dtype` e a forma do perfil (`max` no teste do build, `opt` no bench)
+- [x] Testes novos de CPU (abaixo) e `examples/whisper_demo.py`
+- [ ] Testes na Jetson; release `v0.2.0`
 
 **Pré-requisitos fora de P2:**
 
@@ -484,14 +485,14 @@ A API (`load`, `infer`, `info`, `release`) não muda, e modelos estáticos, como
 | Notebook | Forma fora do perfil gerando `INVALID_INPUT_SHAPE` |
 | Notebook | Lote de 4 numa chamada |
 | Notebook | Manifesto v1 ainda carregando |
-| Jetson | Whisper tiny (encoder e decoder) transcrevendo um áudio curto de ponta a ponta |
+| Jetson | Whisper-small em FP16 (encoder e decoder) transcrevendo um áudio curto de ponta a ponta |
 
 | Saída | Onde fica | Como é usada |
 | --- | --- | --- |
 | `docs/contrato.md` (1.1) | `docs/` e registro de contratos de B1 | Interface comum para I2, I4, I5, I7, I8 e para o pacote MODEL de B5 |
 | Release `v0.2.0` | GitHub `ods-26-2/p2` | `pip install https://github.com/ods-26-2/p2/releases/download/v0.2.0/p2-0.2.0-py3-none-any.whl` |
 
-**Pronto quando:** o Whisper tiny transcrever um áudio curto na Jetson pela API do P2, com encoder e decoder como engines separados, e os testes novos passarem.
+**Pronto quando:** o Whisper-small em FP16 transcrever um áudio curto na Jetson pela API do P2, com encoder e decoder como engines separados, e os testes novos passarem.
 
 ## Testes e verificação
 

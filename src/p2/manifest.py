@@ -1,20 +1,24 @@
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Final, Literal, TypeAlias, TypedDict
 
-from typing_extensions import NotRequired
+from typing_extensions import NotRequired, TypeIs
 
 from p2.errors import ErrorCode, P2BaseError, P2Error
 
 Precision: TypeAlias = Literal["FP16", "FP32"]
 
-SCHEMA_VERSION: Final = 1
+SCHEMA_VERSION: Final = 2
+STATIC_SCHEMA_VERSION: Final = 1
+SUPPORTED_SCHEMAS: Final = frozenset({STATIC_SCHEMA_VERSION, SCHEMA_VERSION})
+DYNAMIC_DIM: Final = -1
+STATIC_DTYPE: Final = "float32"
+TENSOR_DTYPES: Final = frozenset({"float32", "int32", "int64", "bool"})
+PROFILE_KEYS: Final = ("min", "opt", "max")
 MANIFEST_FILE: Final = "manifest.json"
 ENGINE_DIR_ENV: Final = "P2_ENGINE_DIR"
 DEFAULT_ENGINE_ROOT: Final = Path("/opt/ods/engines")
-DYNAMIC_DIM: Final = -1
-TENSOR_DTYPES: Final = frozenset({"float32", "int32", "int64", "bool"})
 
 
 class ShapeProfile(TypedDict):
@@ -120,16 +124,22 @@ def read_manifest(directory: Path) -> Manifest:
 def parse_manifest(raw: object) -> Manifest:
     data = _object(raw, "manifesto")
     schema_version = _int(data, "schema_version")
-    if schema_version != SCHEMA_VERSION:
+    if schema_version not in SUPPORTED_SCHEMAS:
+        supported = ", ".join(str(version) for version in sorted(SUPPORTED_SCHEMAS))
         raise ManifestFormatError(
-            f"schema_version {schema_version} não suportado (esperado {SCHEMA_VERSION})"
+            f"schema_version {schema_version} não suportado (esperado {supported})"
         )
+    dynamic = schema_version == SCHEMA_VERSION
+    inputs = _tensors(_object(_field(data, "inputs"), "inputs"), "inputs", dynamic=dynamic)
+    _check_input_profiles(inputs)
     return {
         "schema_version": schema_version,
         "engine_ref": _str(data, "engine_ref"),
         "source": _source(_object(_field(data, "source"), "source")),
-        "inputs": _tensors(_object(_field(data, "inputs"), "inputs"), "inputs"),
-        "outputs": _tensors(_object(_field(data, "outputs"), "outputs"), "outputs"),
+        "inputs": inputs,
+        "outputs": _tensors(
+            _object(_field(data, "outputs"), "outputs"), "outputs", dynamic=dynamic
+        ),
         "max_batch": _int(data, "max_batch"),
         "variants": _variants(_object(_field(data, "variants"), "variants")),
         "platform": _platform(_object(_field(data, "platform"), "platform")),
@@ -145,20 +155,96 @@ def _source(data: Mapping[str, object]) -> SourceInfo:
     }
 
 
-def _tensors(data: Mapping[str, object], where: str) -> dict[str, TensorSpec]:
+def is_dynamic(shape: Sequence[int]) -> bool:
+    return DYNAMIC_DIM in shape
+
+
+def manifest_schema(inputs: Mapping[str, TensorSpec], outputs: Mapping[str, TensorSpec]) -> int:
+    specs = [*inputs.values(), *outputs.values()]
+    static = all(
+        spec["shape"] and not is_dynamic(spec["shape"]) and spec["dtype"] == STATIC_DTYPE
+        for spec in specs
+    )
+    return STATIC_SCHEMA_VERSION if static else SCHEMA_VERSION
+
+
+def max_batch(inputs: Mapping[str, TensorSpec]) -> int:
+    firsts = [_largest_shape(spec)[0] for spec in inputs.values() if spec["shape"]]
+    return max(firsts, default=1)
+
+
+def profile_problem(shape: Sequence[int], profile: ShapeProfile) -> str | None:
+    bounds = [profile["min"], profile["opt"], profile["max"]]
+    if any(len(dims) != len(shape) for dims in bounds):
+        return f"min/opt/max devem ter {len(shape)} eixos como {list(shape)}"
+    for axis, (dim, low, mid, high) in enumerate(zip(shape, *bounds, strict=True)):
+        if dim != DYNAMIC_DIM and not low == mid == high == dim:
+            return f"eixo {axis} é fixo em {dim}; min/opt/max devem repetir esse valor"
+        if not 0 < low <= mid <= high:
+            return f"eixo {axis} exige 0 < min <= opt <= max, obtido {low}, {mid}, {high}"
+    return None
+
+
+def _largest_shape(spec: TensorSpec) -> list[int]:
+    profile = spec.get("profile")
+    return spec["shape"] if profile is None else profile["max"]
+
+
+def _tensors(data: Mapping[str, object], where: str, *, dynamic: bool) -> dict[str, TensorSpec]:
     if not data:
         raise ManifestFormatError(f"'{where}' vazio")
-    return {name: _tensor(_object(spec, f"{where}.{name}")) for name, spec in data.items()}
+    parse = _dynamic_tensor if dynamic else _static_tensor
+    return {name: parse(_object(spec, f"{where}.{name}")) for name, spec in data.items()}
 
 
-def _tensor(data: Mapping[str, object]) -> TensorSpec:
-    shape = _field(data, "shape")
-    if not isinstance(shape, list):
-        raise ManifestFormatError("'shape' deve ser uma lista")
-    dims = [dim for dim in shape if isinstance(dim, int) and not isinstance(dim, bool) and dim > 0]
-    if not dims or len(dims) != len(shape):
-        raise ManifestFormatError(f"'shape' deve conter inteiros positivos: {shape}")
-    return {"shape": dims, "dtype": _str(data, "dtype")}
+def _static_tensor(data: Mapping[str, object]) -> TensorSpec:
+    shape = _dims(_field(data, "shape"), "shape", allow_dynamic=False)
+    if not shape:
+        raise ManifestFormatError("'shape' deve conter inteiros positivos: []")
+    return {"shape": shape, "dtype": _str(data, "dtype")}
+
+
+def _dynamic_tensor(data: Mapping[str, object]) -> TensorSpec:
+    shape = _dims(_field(data, "shape"), "shape", allow_dynamic=True)
+    dtype = _str(data, "dtype")
+    if dtype not in TENSOR_DTYPES:
+        raise ManifestFormatError(f"dtype '{dtype}' não suportado")
+    spec: TensorSpec = {"shape": shape, "dtype": dtype}
+    if "profile" in data:
+        spec["profile"] = _profile(_object(data["profile"], "profile"))
+    return spec
+
+
+def _check_input_profiles(inputs: Mapping[str, TensorSpec]) -> None:
+    for name, spec in inputs.items():
+        profile = spec.get("profile")
+        if profile is None:
+            if is_dynamic(spec["shape"]):
+                raise ManifestFormatError(f"entrada '{name}' com eixo dinâmico sem 'profile'")
+            continue
+        problem = profile_problem(spec["shape"], profile)
+        if problem is not None:
+            raise ManifestFormatError(f"'profile' de '{name}': {problem}")
+
+
+def _profile(data: Mapping[str, object]) -> ShapeProfile:
+    bounds = {key: _dims(_field(data, key), key, allow_dynamic=False) for key in PROFILE_KEYS}
+    return {"min": bounds["min"], "opt": bounds["opt"], "max": bounds["max"]}
+
+
+def _dims(value: object, key: str, *, allow_dynamic: bool) -> list[int]:
+    if not isinstance(value, list):
+        raise ManifestFormatError(f"'{key}' deve ser uma lista")
+    dims = [dim for dim in value if _is_dim(dim, allow_dynamic=allow_dynamic)]
+    if len(dims) != len(value):
+        raise ManifestFormatError(f"'{key}' deve conter inteiros positivos: {value}")
+    return dims
+
+
+def _is_dim(value: object, *, allow_dynamic: bool) -> TypeIs[int]:
+    if not isinstance(value, int) or isinstance(value, bool):
+        return False
+    return value > 0 or (allow_dynamic and value == DYNAMIC_DIM)
 
 
 def _variants(data: Mapping[str, object]) -> dict[Precision, VariantInfo]:

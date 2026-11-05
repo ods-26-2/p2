@@ -13,7 +13,7 @@ with p2.load("yolo11n-1.0.0") as h:
     out, stats = p2.infer(h, np.zeros((1, 3, 640, 640), dtype=np.float32))
 ```
 - Contrato da API (P2 1.1, lib 0.2.x; a 0.1.0 implementa a 1.0): [docs/contrato.md](docs/contrato.md); guia de integração do I1: [docs/guia-integracao.md](docs/guia-integracao.md)
-- Em desenvolvimento na branch `dev-v0.2.0`: forma dinâmica, lote, dtypes por tensor e modelos com várias etapas ([spec 009](specs/ativas/009-v020-forma-dinamica-etapas.md))
+- Em pré-release (`v0.2.0a3`): forma dinâmica, lote, dtypes por tensor e modelos com várias etapas ([spec 009](specs/ativas/009-v020-forma-dinamica-etapas.md)); exemplo: [examples/whisper_demo.py](examples/whisper_demo.py)
 - Guia rápido (instalar, compilar, usar, testar): [docs/guia-rapido.md](docs/guia-rapido.md)
 - Exemplo completo (pré e pós-processamento YOLO): [examples/example.py](examples/example.py), sobre [examples/yolo_demo.py](examples/yolo_demo.py)
 - Plano completo: [plano-p2.md](plano-p2.md); decisões: [docs/decisoes.md](docs/decisoes.md)
@@ -91,5 +91,6 @@ python -m build --wheel
 
 - Testes de TensorRT ficam em `tests/jetson/` (marca `jetson`) e são pulados sem `tensorrt`. Na placa: `pip install -e ".[trt,cpu]" -r requirements-dev.txt` e `pytest -m jetson`.
 - Equivalência de outro modelo: `P2_ENGINE_DIR=<raiz> P2_EQUIVALENCE_ENGINE=app-epi-1.0.0 P2_EQUIVALENCE_IMAGES=<pasta> P2_EQUIVALENCE_REPORT=reports/equivalencia/app-epi-1.0.0.md pytest -m jetson tests/jetson/test_equivalence.py`
+- Os testes do Whisper precisam de `models/whisper-small-encoder.onnx`, `whisper-small-decoder.onnx`, `whisper-tokenizer.json` e `whisper-sample.wav`; sem eles, são pulados.
 - Os testes do yolo11n precisam de `models/yolo11n.onnx` (fora do git); o pacote é montado numa pasta temporária com o `metadata.json` de `tests/fixtures/yolo11n-1.0.0/`; sem o arquivo, são pulados.
 - Specs de desenvolvimento em [specs/INDEX.md](specs/INDEX.md).

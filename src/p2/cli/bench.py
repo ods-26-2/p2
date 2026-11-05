@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import os
 import re
 import subprocess
 import time
@@ -14,10 +15,18 @@ from typing import Final, TypeAlias, TypedDict
 import numpy as np
 
 import p2
-from p2.backends.base import FloatArray
+from p2.backends.base import TensorArray
 from p2.build.platform import installed_tensorrt, read_platform
 from p2.errors import P2Error
-from p2.manifest import PlatformInfo, Precision, as_precision
+from p2.manifest import (
+    STATIC_DTYPE,
+    PlatformInfo,
+    Precision,
+    TensorSpec,
+    as_precision,
+    engine_dir,
+    read_manifest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +162,7 @@ def run_bench(config: BenchConfig, probes: Probes) -> BenchReport:
     try:
         after_load = probes.memory()
         info = p2.info(handle)
-        inputs = _random_inputs(info["input_shape"])
+        inputs = bench_inputs(read_manifest(engine_dir(config.engine_ref, os.environ))["inputs"])
         for _ in range(config.warmup):
             p2.infer(handle, inputs)
         measurement = _measure(handle, inputs, config.duration_s, probes.memory)
@@ -289,14 +298,22 @@ def _duration(text: str) -> float:
         raise argparse.ArgumentTypeError(str(err)) from err
 
 
-def _random_inputs(shapes: Mapping[str, list[int]]) -> dict[str, FloatArray]:
+def bench_inputs(specs: Mapping[str, TensorSpec]) -> dict[str, TensorArray]:
     rng = np.random.default_rng(RANDOM_SEED)
-    return {name: rng.random(tuple(shape), dtype=np.float32) for name, shape in shapes.items()}
+    return {name: _bench_input(spec, rng) for name, spec in specs.items()}
+
+
+def _bench_input(spec: TensorSpec, rng: np.random.Generator) -> TensorArray:
+    profile = spec.get("profile")
+    shape = tuple(spec["shape"] if profile is None else profile["opt"])
+    if spec["dtype"] == STATIC_DTYPE:
+        return rng.random(shape, dtype=np.float32)
+    return np.zeros(shape, dtype=np.dtype(spec["dtype"]))
 
 
 def _measure(
     handle: p2.Handle,
-    inputs: Mapping[str, FloatArray],
+    inputs: Mapping[str, TensorArray],
     duration_s: float,
     memory: MemoryProbe,
 ) -> Measurement:

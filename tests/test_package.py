@@ -128,9 +128,9 @@ def test_input_shape_mismatch(tmp_path: Path) -> None:
         validate_package(read_package(root))
 
 
-def test_dynamic_dimension_rejected(tmp_path: Path) -> None:
+def test_dynamic_dimension_needs_profile(tmp_path: Path) -> None:
     root = write_package(tmp_path, PackageSpec(onnx_input_shape=("batch", 3, 8, 8)))
-    with pytest.raises(BuildError, match="forma dinâmica em 'images', eixo 0: 'batch'"):
+    with pytest.raises(BuildError, match="declare min/opt/max em dynamic_shapes"):
         validate_package(read_package(root))
 
 

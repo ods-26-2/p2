@@ -10,6 +10,7 @@ import numpy.typing as npt
 import pytest
 
 import p2
+from helpers.dynamic_package import DYNAMIC_REF, FEATURES, MAX_BATCH, MAX_TOKENS
 from helpers.model_package import (
     ANCHORS,
     CLASSES,
@@ -19,6 +20,7 @@ from helpers.model_package import (
     OUTPUT_NAME,
     build_engine,
 )
+from p2.api import BACKEND_ENV
 from p2.errors import ErrorCode
 from p2.manifest import ENGINE_DIR_ENV, MANIFEST_FILE
 
@@ -222,3 +224,47 @@ def test_automatic_backend_prefers_tensorrt(monkeypatch: pytest.MonkeyPatch) -> 
     with p2.load(ENGINE_REF) as handle:
         assert p2.info(handle)["precision"] == "FP16"
         assert p2.infer(handle, _input())[1]["gpu_memory_mb"] > 0.0
+
+
+@pytest.fixture
+def dynamic_env(compiled_dynamic_root: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv(ENGINE_DIR_ENV, str(compiled_dynamic_root))
+    monkeypatch.setenv(BACKEND_ENV, "trt")
+    return compiled_dynamic_root
+
+
+def _dynamic_feeds(batch: int, tokens: int) -> dict[str, npt.NDArray[np.generic]]:
+    return {
+        "x": np.ones((batch, FEATURES), dtype=np.float32),
+        "tokens": np.arange(tokens, dtype=np.int64).reshape(1, tokens),
+        "sr": np.array(16000, dtype=np.int64),
+    }
+
+
+@pytest.mark.usefixtures("dynamic_env")
+@pytest.mark.parametrize(("batch", "tokens"), [(1, 1), (4, 3), (MAX_BATCH, MAX_TOKENS)])
+def test_dynamic_shapes_and_dtypes_on_gpu(batch: int, tokens: int) -> None:
+    with p2.load(DYNAMIC_REF) as handle:
+        outputs, stats = p2.infer(handle, _dynamic_feeds(batch, tokens))
+    assert outputs["y"].shape == (batch, FEATURES)
+    assert outputs["mask"].dtype == np.bool_
+    assert outputs["next"].dtype == np.int64
+    assert outputs["next"].shape == (1, tokens)
+    assert stats["gpu_memory_mb"] > 0
+
+
+@pytest.mark.usefixtures("dynamic_env")
+def test_shape_changes_between_calls_on_same_handle() -> None:
+    with p2.load(DYNAMIC_REF) as handle:
+        large, first = p2.infer(handle, _dynamic_feeds(MAX_BATCH, 2))
+        small, second = p2.infer(handle, _dynamic_feeds(1, 2))
+    assert large["y"].shape[0] == MAX_BATCH
+    assert small["y"].shape[0] == 1
+    assert first["gpu_memory_mb"] == second["gpu_memory_mb"]
+
+
+@pytest.mark.usefixtures("dynamic_env")
+def test_outside_profile_on_gpu_is_invalid_input_shape() -> None:
+    with p2.load(DYNAMIC_REF) as handle, pytest.raises(p2.P2Error) as error:
+        p2.infer(handle, _dynamic_feeds(MAX_BATCH + 1, 2))
+    assert error.value.code == ErrorCode.INVALID_INPUT_SHAPE

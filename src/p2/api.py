@@ -7,10 +7,17 @@ from typing import Final, TypeAlias
 import numpy as np
 import numpy.typing as npt
 
-from p2.backends.base import Backend, FloatArray, TensorArray
+from p2.backends.base import Backend, TensorArray
 from p2.errors import ErrorCode, P2Error
 from p2.handle import EngineInfo, Handle, InferStats
-from p2.manifest import Manifest, Precision, as_precision, engine_dir, read_manifest
+from p2.manifest import (
+    Manifest,
+    Precision,
+    TensorSpec,
+    as_precision,
+    engine_dir,
+    read_manifest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +41,12 @@ def load(engine_ref: str, options: Mapping[str, object] | None = None) -> Handle
         )
     precision = requested or backend.default_precision
     session = backend.open(manifest, directory, precision)
-    return Handle(engine_ref=engine_ref, info=_engine_info(manifest, precision), session=session)
+    return Handle(
+        engine_ref=engine_ref,
+        info=_engine_info(manifest, precision),
+        inputs=manifest["inputs"],
+        session=session,
+    )
 
 
 def infer(
@@ -43,7 +55,7 @@ def infer(
 ) -> tuple[dict[str, TensorArray], InferStats]:
     started = time.perf_counter()
     handle.ensure_open()
-    feeds = _normalize_input(input, handle.input_shapes())
+    feeds = _normalize_input(input, handle.input_specs())
     outputs = handle.run(feeds)
     latency_ms = (time.perf_counter() - started) * MS_PER_SECOND
     return outputs, {"latency_ms": latency_ms, "gpu_memory_mb": handle.memory_mb}
@@ -135,43 +147,63 @@ def _engine_info(manifest: Manifest, precision: Precision) -> EngineInfo:
     }
 
 
-def _normalize_input(value: object, shapes: Mapping[str, tuple[int, ...]]) -> dict[str, FloatArray]:
+def _normalize_input(value: object, specs: Mapping[str, TensorSpec]) -> dict[str, TensorArray]:
     if isinstance(value, np.ndarray):
-        if len(shapes) != 1:
+        if len(specs) != 1:
             raise P2Error(
                 ErrorCode.INVALID_INPUT_SHAPE,
-                f"o modelo tem {len(shapes)} entradas; passe {{nome: array}} com {sorted(shapes)}",
+                f"o modelo tem {len(specs)} entradas; passe {{nome: array}} com {sorted(specs)}",
             )
-        (name,) = shapes
-        return {name: _check_array(name, value, shapes[name])}
+        (name,) = specs
+        return {name: _check_array(name, value, specs[name])}
     if not isinstance(value, Mapping):
         raise P2Error(
             ErrorCode.INVALID_INPUT_SHAPE,
             f"entrada deve ser np.ndarray ou dict, obtido {type(value).__name__}",
         )
     names = {str(key) for key in value}
-    if names != set(shapes):
+    if names != set(specs):
         raise P2Error(
             ErrorCode.INVALID_INPUT_SHAPE,
-            f"nomes de entrada {sorted(names)} diferentes dos esperados {sorted(shapes)}",
+            f"nomes de entrada {sorted(names)} diferentes dos esperados {sorted(specs)}",
         )
-    return {name: _check_array(name, value[name], shape) for name, shape in shapes.items()}
+    return {name: _check_array(name, value[name], spec) for name, spec in specs.items()}
 
 
-def _check_array(name: str, value: object, shape: tuple[int, ...]) -> FloatArray:
+def _check_array(name: str, value: object, spec: TensorSpec) -> TensorArray:
     if not isinstance(value, np.ndarray):
         raise P2Error(
             ErrorCode.INVALID_INPUT_SHAPE,
             f"entrada '{name}' deve ser np.ndarray, obtido {type(value).__name__}",
         )
-    if value.dtype != np.float32:
+    expected = np.dtype(spec["dtype"])
+    if value.dtype != expected:
         raise P2Error(
             ErrorCode.INVALID_INPUT_SHAPE,
-            f"entrada '{name}' deve ser float32, obtido {value.dtype}",
+            f"entrada '{name}' deve ser {expected.name}, obtido {value.dtype}",
         )
-    if value.shape != shape:
+    if not shape_fits(value.shape, spec):
         raise P2Error(
             ErrorCode.INVALID_INPUT_SHAPE,
-            f"entrada '{name}' com forma {list(value.shape)}, esperado {list(shape)}",
+            f"entrada '{name}' com forma {list(value.shape)}, esperado {_expected_shape(spec)}",
         )
-    return np.ascontiguousarray(value, dtype=np.float32)
+    return np.asarray(value, order="C")
+
+
+def shape_fits(shape: tuple[int, ...], spec: TensorSpec) -> bool:
+    profile = spec.get("profile")
+    if profile is None:
+        return list(shape) == spec["shape"]
+    if len(shape) != len(spec["shape"]):
+        return False
+    return all(
+        low <= dim <= high
+        for dim, low, high in zip(shape, profile["min"], profile["max"], strict=True)
+    )
+
+
+def _expected_shape(spec: TensorSpec) -> str:
+    profile = spec.get("profile")
+    if profile is None:
+        return str(spec["shape"])
+    return f"{spec['shape']} entre {profile['min']} e {profile['max']}"

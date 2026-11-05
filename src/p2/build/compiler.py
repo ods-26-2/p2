@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Final
 
@@ -6,12 +7,12 @@ import numpy as np
 import tensorrt as trt
 from typing_extensions import Buffer
 
-from p2.backends.trt import CollectingLogger, TrtBackend
+from p2.backends.trt import CollectingLogger, TrtBackend, max_shape
 from p2.build.output import WORKSPACE_MB
-from p2.build.package import OnnxIO
+from p2.build.package import OnnxIO, pin_fixed_axes
 from p2.build.platform import read_platform
 from p2.errors import BuildError, P2Error
-from p2.manifest import Manifest, PlatformInfo, Precision, TensorSpec
+from p2.manifest import Manifest, PlatformInfo, Precision, ShapeProfile, TensorSpec
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class TrtCompiler:
             raise BuildError(f"engine {precision} não abriu para o teste: {err}") from err
         try:
             zeros = {
-                name: np.zeros(spec["shape"], dtype=np.float32)
+                name: np.zeros(max_shape(spec), dtype=np.dtype(spec["dtype"]))
                 for name, spec in manifest["inputs"].items()
             }
             session.run(zeros)
@@ -44,9 +45,16 @@ class TrtCompiler:
         finally:
             session.close()
 
-    def compile(self, onnx_path: Path, engine_path: Path, precision: Precision) -> OnnxIO:
+    def compile(
+        self,
+        onnx_path: Path,
+        engine_path: Path,
+        precision: Precision,
+        profiles: Mapping[str, ShapeProfile],
+    ) -> OnnxIO:
         try:
-            serialized = self._build(onnx_path.read_bytes(), precision)
+            model = pin_fixed_axes(onnx_path.read_bytes(), profiles)
+            serialized = self._build(model, precision, profiles)
             engine_io = self._inspect(serialized, precision)
         except (RuntimeError, TypeError) as err:
             raise BuildError(f"TensorRT falhou ao compilar {precision}: {err}") from err
@@ -55,7 +63,9 @@ class TrtCompiler:
         engine_path.write_bytes(serialized)
         return engine_io
 
-    def _build(self, model: bytes, precision: Precision) -> bytes:
+    def _build(
+        self, model: bytes, precision: Precision, profiles: Mapping[str, ShapeProfile]
+    ) -> bytes:
         builder = trt.Builder(self._logger)
         network = builder.create_network(NETWORK_FLAGS)
         parser = trt.OnnxParser(network, self._logger)
@@ -68,6 +78,11 @@ class TrtCompiler:
         config.clear_flag(trt.BuilderFlag.TF32)
         if precision == "FP16":
             config.set_flag(trt.BuilderFlag.FP16)
+        if profiles:
+            profile = builder.create_optimization_profile()
+            for name, bounds in profiles.items():
+                profile.set_shape(name, bounds["min"], bounds["opt"], bounds["max"])
+            config.add_optimization_profile(profile)
         serialized = builder.build_serialized_network(network, config)
         if serialized is None:
             raise BuildError(f"compilação {precision} falhou: {self._logger.take_errors()}")

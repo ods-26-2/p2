@@ -11,24 +11,33 @@ from typing import Final, Protocol
 from p2.build.package import ModelPackage, OnnxIO, sha256_file
 from p2.errors import BuildError
 from p2.manifest import (
-    SCHEMA_VERSION,
+    DYNAMIC_DIM,
     Manifest,
     PlatformInfo,
     Precision,
+    ShapeProfile,
+    TensorSpec,
     VariantInfo,
+    manifest_schema,
+    max_batch,
     write_manifest,
 )
 
 logger = logging.getLogger(__name__)
 
 TOOL_NAME: Final = "p2-build"
-MAX_BATCH: Final = 1
 WORKSPACE_MB: Final = 1024
 ENGINE_FILES: Final[Mapping[Precision, str]] = {"FP16": "fp16.engine", "FP32": "fp32.engine"}
 
 
 class EngineCompiler(Protocol):
-    def compile(self, onnx_path: Path, engine_path: Path, precision: Precision) -> OnnxIO: ...
+    def compile(
+        self,
+        onnx_path: Path,
+        engine_path: Path,
+        precision: Precision,
+        profiles: Mapping[str, ShapeProfile],
+    ) -> OnnxIO: ...
 
     def platform(self) -> PlatformInfo: ...
 
@@ -49,17 +58,18 @@ def build_manifest(
     platform: PlatformInfo,
     stamp: BuildStamp,
 ) -> Manifest:
+    inputs = with_profiles(io.inputs, package.dynamic_shapes)
     return {
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": manifest_schema(inputs, io.outputs),
         "engine_ref": package.engine_ref,
         "source": {
             "onnx_file": package.onnx_path.name,
             "sha256": package.sha256,
             "metadata_file": package.metadata_path.name,
         },
-        "inputs": io.inputs,
+        "inputs": inputs,
         "outputs": io.outputs,
-        "max_batch": MAX_BATCH,
+        "max_batch": max_batch(inputs),
         "variants": dict(variants),
         "platform": platform,
         "build": {
@@ -69,6 +79,43 @@ def build_manifest(
             "workspace_mb": WORKSPACE_MB,
         },
     }
+
+
+def with_profiles(
+    inputs: Mapping[str, TensorSpec], profiles: Mapping[str, ShapeProfile]
+) -> dict[str, TensorSpec]:
+    specs: dict[str, TensorSpec] = {}
+    for name, spec in inputs.items():
+        copied: TensorSpec = {"shape": list(spec["shape"]), "dtype": spec["dtype"]}
+        if name in profiles:
+            copied["profile"] = profiles[name]
+        specs[name] = copied
+    return specs
+
+
+def io_matches(onnx_io: OnnxIO, engine_io: OnnxIO) -> bool:
+    return _tensors_match(onnx_io.inputs, engine_io.inputs) and _tensors_match(
+        onnx_io.outputs, engine_io.outputs
+    )
+
+
+def _tensors_match(
+    onnx_specs: Mapping[str, TensorSpec], engine_specs: Mapping[str, TensorSpec]
+) -> bool:
+    if set(onnx_specs) != set(engine_specs):
+        return False
+    return all(_tensor_matches(spec, engine_specs[name]) for name, spec in onnx_specs.items())
+
+
+def _tensor_matches(onnx_spec: TensorSpec, engine_spec: TensorSpec) -> bool:
+    if onnx_spec["dtype"] != engine_spec["dtype"]:
+        return False
+    if len(onnx_spec["shape"]) != len(engine_spec["shape"]):
+        return False
+    return all(
+        DYNAMIC_DIM in (onnx_dim, engine_dim) or onnx_dim == engine_dim
+        for onnx_dim, engine_dim in zip(onnx_spec["shape"], engine_spec["shape"], strict=True)
+    )
 
 
 def write_cpu_only(
@@ -132,8 +179,10 @@ def _compile_variant(
 ) -> VariantInfo:
     engine_path = staging / ENGINE_FILES[precision]
     logger.info("compilando %s em %s", package.engine_ref, precision)
-    engine_io = compiler.compile(staging / package.onnx_path.name, engine_path, precision)
-    if engine_io != io:
+    engine_io = compiler.compile(
+        staging / package.onnx_path.name, engine_path, precision, package.dynamic_shapes
+    )
+    if not io_matches(io, engine_io):
         raise BuildError(
             f"I/O do engine {precision} diverge do ONNX: "
             f"engine {engine_io.inputs} → {engine_io.outputs}, ONNX {io.inputs} → {io.outputs}"

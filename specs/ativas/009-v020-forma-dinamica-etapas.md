@@ -5,12 +5,12 @@
 - Fechada: —
 - Base: 001 (pacote, manifesto), 004 (contrato 1.0, RG1), 005 (API), 006 (backend TRT), 007 (bench), 008 (release 0.1.0); plano-p2.md (E8)
 - Substituída por: —
-- Tags: v0.2.0, E8, interface, contrato-1.1, forma-dinamica, perfil, lote, dtype, task, etapas, whisper, vad, ocr, reid, I2, I4, I5, I7, I8
+- Tags: v0.2.0, E8, implementacao, interface, contrato-1.1, forma-dinamica, perfil, lote, dtype, task, etapas, whisper, vad, ocr, reid, I2, I4, I5, I7, I8
 
 ## Objetivo
 - Interface comum da 6c para I5 (Whisper, VAD), I7 (OCR em 2 estágios), I2 (ReID em lote), I4 e I8 (modelos sem classes)
 - `load`/`infer`/`info`/`release` sem mudança de assinatura; modelos estáticos (YOLO) iguais à 0.1.0
-- Nesta etapa: só a interface (contrato 1.1, formatos, tipos públicos). Implementação aguarda decisão do usuário
+- Whisper-small em FP16 na Jetson (encoder e decoder como engines separados)
 
 ## Fora de escopo
 - Laço entre etapas (decodificação token a token em I5, recorte da placa em I7): fica no consumidor
@@ -33,12 +33,18 @@
 - R13: compatibilidade: manifesto v1 carrega igual; pacote sem `task` = `detect`; YOLO estático com o mesmo manifesto e o mesmo `info` da 0.1.0
 - R14: `docs/contrato.md` → "Contrato P2 1.1" (lib 0.2.x), com o que muda para cada grupo (004/RG1)
 - R15: tipos públicos da interface no código: `p2.TensorArray`; `ShapeProfile`, `TensorSpec.profile`, `DYNAMIC_DIM`, `TENSOR_DTYPES` em `manifest.py`; `Task` em `build/package.py`
-- R16: testes: ONNX sintético com eixo dinâmico; entrada int64; forma fora do perfil → `INVALID_INPUT_SHAPE`; lote de 4 numa chamada; manifesto v1 carregando; Jetson: Whisper tiny (encoder + decoder) transcrevendo um áudio curto
+- R16: testes: ONNX sintético com eixo dinâmico; entrada int64; forma fora do perfil → `INVALID_INPUT_SHAPE`; lote de 4 numa chamada; manifesto v1 carregando; Jetson: Whisper-small FP16 (encoder + decoder) transcrevendo um áudio curto
 - R17: plano com a etapa E8 (v0.2.0), pré-requisitos externos e pendências
+- R18: eixo com `min == max` fixado no ONNX antes do parse do TensorRT (exports com todos os eixos simbólicos; `Conv` exige canal fixo)
+- R19: ONNX com pesos externos → `BuildError`
+- R22: `examples/whisper_example.py`: `WhisperBridge` com a forma do `p2_runtime` do I5 (`load`, `info`, `infer`, `release`; áudio entra, `{text, confidence, token_probs}` sai); ignora `options` exceto `precision`; áudio > 30 s em trechos
+- R21: `examples/whisper_setup.py`: baixa (hashes fixos), monta os 2 pacotes e compila; seção no guia rápido
+- R20: `examples/whisper_demo.py`: WAV 16 kHz mono → log-mel → encoder → decodificação gulosa → texto, só com a API pública
 
 ## Regras
 - Valem 001/RG1–RG3, 003/RG1, 004/RG1, 005/RG1, 007/RG1 (exceção em D14)
 - RG1: modelo estático só float32 gera manifesto v1 idêntico ao da 0.1.0 (D4)
+- RG3 [global]: o que funciona na 0.1.0 continua funcionando sem mudança para quem usa modelo estático: API, métodos públicos do `Handle`, manifesto, saídas e erros (pedido do usuário)
 - RG2 [global]: pendências abertas ficam em `specs/INDEX.md` ("Pendências abertas") e são revisadas antes de cada pedido de mudança (D13)
 
 ## Decisões
@@ -53,10 +59,14 @@
 - D9 [assumida] saída com forma dependente dos dados (ex.: `NonZero`) não suportada → `ENGINE_NOT_FOUND` no `load` TRT
 - D10 [assumida] versão `0.2.0.dev0` na `dev-v0.2.0` até a implementação [substituída por D16]
 - D11 [assumida] tipos do R15 entram já, sem uso em runtime — exceção a "sem abstrações especulativas": pedido explícito de interface
-- D12 [assumida] implementação adiada; rascunho incompleto em `git stash` "rascunho da implementação 0.2.0"
+- D12 [assumida] implementação adiada; rascunho incompleto em `git stash` "rascunho da implementação 0.2.0" [substituída: implementação retomada a pedido do usuário]
 - D13 [assumida] pendências centralizadas no INDEX (sempre carregado) + regra no CLAUDE.md — pedido do usuário
 - D14 [assumida] smoke do `p2-build` na forma `max`; `p2-bench` na forma `opt`, lendo o manifesto (float aleatório; int e bool zerados) — `info` não tem dtype nem perfil
 - D16 [aprovada] pré-release `v0.2.0a1` com a interface (comportamento da 0.1.0); `v0.2.0` final só com o Whisper funcionando; `main` avança junto — escolha do usuário
+- D17 [assumida] `infer` do Whisper recebe log-mel `float32 [1, 80, 3000]`, não áudio; áudio → mel fica no I5 — pré-processamento fora do P2; STFT no grafo não é suportado pelo parser do TensorRT 10.3; aguarda confirmação do usuário
+- D18 [assumida] `whisper_demo.py` com mel em numpy e BPE próprio, sem dependência nova — referência copiável para o I5
+- D19 [rejeitada] aviso de NaN/infinito no smoke do `p2-build` → removido — o P2 não faz mais do que o planejado (pedido do usuário)
+- D20 [aprovada] ponte áudio → texto como exemplo no P2, para o I5 copiar; fora da lib — escolha do usuário (opção B)
 - D15 [assumida] erros de pacote (perfil, task, dtype, input_shape) → `BuildError`, exit 1, mensagem em português, sem gravar nada (001/RG4)
 
 ## Tarefas
@@ -64,13 +74,18 @@
 - [x] T2: `docs/contrato.md` 1.1 (R1–R14, D1–D9)
 - [x] T3: tipos públicos no código; versão 0.2.0.dev0 (R15, D3, D10, D11)
 - [x] T4: `docs/decisoes.md`, README; INDEX com pendências; regra no CLAUDE.md (D13, RG2)
-- [ ] T5 (aguarda decisão): manifesto v2: leitura, gravação v1/v2, `max_batch` (R4, R5, R13, D4–D6)
-- [ ] T6 (aguarda decisão): pacote por `task`, `input_shape` em dicionário, `dynamic_shapes`, dtypes (R2, R10–R12, D7, D8, D15)
-- [ ] T7 (aguarda decisão): `infer` com dtype e perfil; ORT preserva o dtype (R6, R9)
-- [ ] T8 (aguarda decisão): TRT: perfil no compilador, `set_input_shape`, buffers em `max`, saídas por chamada (R3, R7, R8, D9)
-- [ ] T9 (aguarda decisão): smoke e `p2-bench` com formas e dtypes (D14)
-- [ ] T10 (aguarda decisão): testes do R16 no notebook; versões Jetson dos testes
-- [ ] T11 (usuário, Jetson; depende de B5/VER-4): Whisper tiny de ponta a ponta
+- [x] T5: manifesto v2: leitura, gravação v1/v2, `max_batch` (R4, R5, R13, D4–D6)
+- [x] T6: pacote por `task`, `input_shape` em dicionário, `dynamic_shapes`, dtypes (R2, R10–R12, D7, D8, D15)
+- [x] T7: `infer` com dtype e perfil; ORT preserva o dtype (R6, R9)
+- [x] T8: TRT: perfil no compilador, `set_input_shape`, buffers em `max`, saídas por chamada, eixos fixos (R3, R7, R8, R18, D9); não executado com TensorRT real
+- [x] T9: smoke e `p2-bench` com formas e dtypes (D14)
+- [x] T10: testes do R16 no notebook; versões Jetson dos testes
+- [x] T15: `examples/whisper_demo.py`, pesos externos (R19, R20, D17, D18)
+- [x] T19: pré-release `v0.2.0a3` com a implementação (D16)
+- [x] T18: `examples/whisper_example.py`, testes e guia rápido (R22, D20)
+- [x] T17: `examples/whisper_setup.py`, testes e guia rápido (R21)
+- [x] T16: análise de compatibilidade com a 0.1.0; `Handle.input_shapes()` e `FloatArray` restaurados (R13, RG3)
+- [ ] T11 (usuário, Jetson): `pytest -m jetson`, incluindo Whisper-small FP16 de ponta a ponta
 - [x] T13: pré-release `v0.2.0a1` (D16)
 - [x] T14: pré-release `v0.2.0a2`: example.py do app-plates e guia rápido (D16; 008/T12–T13)
 - [ ] T12 (externo, com confirmação): release `v0.2.0`
@@ -89,6 +104,42 @@
 ### src/p2/build/package.py (de 001)
 - class Task(str, Enum): 9 tarefas; DEFAULT_TASK = Task.DETECT [R10, R15]
 
+### src/p2/manifest.py, api.py, handle.py, backends/ort.py (implementação)
+- SCHEMA_VERSION = 2, STATIC_SCHEMA_VERSION = 1, SUPPORTED_SCHEMAS, STATIC_DTYPE, PROFILE_KEYS (Final) [R4, D4]
+- def manifest_schema(inputs, outputs) -> int; def max_batch(inputs) -> int; def profile_problem(shape, profile) -> str | None; def is_dynamic(shape) -> bool [R2, R4, R5, D4, D5]
+- api.shape_fits(shape, spec) -> bool; _check_array valida dtype e perfil; Handle.input_specs() [R6, R9]
+- OrtSession.run e Handle.run preservam o dtype [R9]
+
+### src/p2/build/package.py, output.py, compiler.py (de 001, 002, 006)
+- ModelPackage + task, dynamic_shapes; input_shape: DeclaredShapes; read_onnx_io: eixo simbólico → -1, pesos externos → BuildError [R2, R10–R12, R19, D8]
+- def pin_fixed_axes(model: bytes, profiles) -> bytes [R18]
+- output: with_profiles, io_matches (eixo -1 aceita qualquer valor); EngineCompiler.compile(..., profiles) [R3, R18]
+- TrtCompiler: perfil de otimização; smoke em `max` com dtype [R3, D14]
+
+### src/p2/backends/trt.py (de 006)
+- class DeviceInput, DeviceOutput (substituem DeviceTensor); max_shape(spec) -> list[int]; TrtSession.run: set_input_shape, formas de saída do contexto, cópia do tamanho real [R6–R9, D9]
+
+### src/p2/cli/bench.py (de 007)
+- def bench_inputs(specs) -> dict[str, TensorArray]: forma `opt`, float aleatório, int/bool zerados [D14]
+
+### examples/whisper_demo.py
+- Tokenizer(prompt, end_of_text, decode); read_tokenizer, read_wav (WAV 16 kHz mono), mel_filters, log_mel(samples) -> [1, 80, 3000] [R20, D17, D18]
+- def transcribe(encoder, decoder, samples, *, tokenizer, language) -> str; main [R20]
+
+### examples/whisper_example.py
+- class WhisperBridge: load(engine_ref, options) -> BridgeHandle, info, infer(handle, audio) -> (Transcript, Metrics), release [R22, D20]
+- whisper_demo.generate(...) -> (tokens, probabilidades) [R22]
+
+### examples/whisper_setup.py, docs/guia-rapido.md (de 008)
+- class RemoteFile, Stage; ENCODER, DECODER, FILES (Final); download, convert_sample, write_package(directory, stage, onnx_path) -> Path, main [R21]
+
+### tests/
+- helpers/dynamic_package.py: ONNX com eixos dinâmicos, int64, bool, escalar [R16]
+- helpers/whisper.py: pacotes de `models/whisper-*` via `whisper_setup` [R16]; test_whisper_setup.py: pacote, hash, download [R21]; test_whisper_example.py: formato do I5, options, trechos, áudio vazio, release [R22]
+- test_dynamic.py: manifesto v1/v2, info, lote, dtypes, perfil, tasks, validações, eixos fixos, bench [R2–R13, R18, R19]
+- test_whisper_demo.py: wav, log-mel, tokenizer, transcrição na CPU (skip sem modelo) [R16, R20]
+- jetson/test_trt.py, jetson/test_whisper.py: dinâmico na GPU; Whisper-small FP16 [R16]
+
 ### examples/yolo_demo.py (de 008)
 - `detect` converte a saída para float32 antes do pós-processamento [D3]
 
@@ -105,3 +156,10 @@
 - 2026-11-04: pré-release `v0.2.0a1` publicada via `gh` (--prerelease) com o wheel; download pela URL com sha256 6c9935cf…bd3036d; `v0.1.0` segue como Latest; develop, main e dev-v0.2.0 no remoto
 - 2026-11-04: T14: versão 0.2.0a2; wheel sha256 6514602f…dd29f4cc, 19 módulos; venv limpo [cpu] ok; pytest 217 passed, 11 skipped; mypy e ruff ok
 - 2026-11-05: pré-release `v0.2.0a2` publicada via `gh` (--prerelease); download pela URL com sha256 6514602f…dd29f4cc; `v0.1.0` segue como Latest; develop e main em 3b394ed
+- 2026-11-05: T5–T10, T15 (branch dev-v0.2.0, modo auto): rascunho do stash concluído; achados: `np.ascontiguousarray` virava escalar em 1-d; encoder real tem canal simbólico (R18); decoder real tem 49 saídas
+- 2026-11-05: Whisper-small real (onnx-community, IR 7, opset 14) na CPU: "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."; pytest com modelos 294 passed, 4 skipped; sem modelos 285 passed, 13 skipped; mypy strict 53 arquivos; ruff ok; nada executado com TensorRT real
+- 2026-11-05: T16: testes da tag v0.1.0 no código novo: 208 de 222 passam; 11 falhas só em interno ou intencional (exportações/versão, compilador falso, schema 2, mensagem de eixo dinâmico). Lado a lado com o wheel 0.1.0 e yolo11n: manifesto idêntico, saídas bit a bit iguais (lib × pasta), erros e mensagens iguais. TensorRT/CUDA simulados: mesmas 77 chamadas na mesma ordem. Regressão achada e corrigida: `Handle.input_shapes()`
+- 2026-11-05: T17: whisper_setup.py na CPU com download real do tokenizer e do áudio: transcrição ok; pasta existente e falta de TensorRT dão erro claro; pytest 291 passed, 13 skipped; mypy strict 55 arquivos; ruff ok
+- 2026-11-05: T18: `TranscritorWhisper` do I5 sem alteração (cópia) com `WhisperBridge` na CPU: 4 áudios em português e 1 de 40 s; envelope com texto, confiança e `artifact_version`; pytest com modelos 310 passed, 4 skipped; sem modelos 300 passed, 14 skipped; mypy strict 57 arquivos; ruff ok
+- 2026-11-05: auditoria de escopo de `src/p2`: sem lógica de Whisper, sem dependência nova, API igual + `TensorArray`; removido warn_non_finite (D19); extras mantidos: R18 (necessário para compilar) e R19 (recusa); engine do Whisper ainda não compilado
+- 2026-11-05: T19: versão 0.2.0a3; wheel sha256 9bb07c2a…5a4c45, 19 módulos; venv limpo [cpu] ok; com modelos reais pytest 310 passed, 4 skipped; mypy e ruff ok

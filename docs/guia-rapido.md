@@ -92,3 +92,47 @@ pytest -m jetson                             # testes de TensorRT (só na Jetson
 ```
 
 Os testes do yolo11n precisam de `models/yolo11n.onnx`. Sem esse arquivo, são pulados.
+
+## 5. Rodar o Whisper-small
+
+Precisa da lib 0.2 (forma dinâmica, `int64`, duas etapas). Na raiz de um clone do repositório, com a lib instalada nele (`pip install -e ".[trt]"` na Jetson, `pip install -e ".[cpu]"` no notebook):
+
+```bash
+export P2_ENGINE_DIR=~/p2-engines
+
+python3 examples/whisper_setup.py              # Jetson: baixa (~1 GB) e compila em FP16
+python3 examples/whisper_setup.py --cpu-only   # notebook: baixa e prepara para a CPU
+
+python3 examples/whisper_demo.py audio.wav                                      # português
+python3 examples/whisper_demo.py models/whisper-sample.wav --language en        # áudio de teste
+```
+
+- O áudio deve ser WAV PCM 16 bits, mono, 16 kHz: `ffmpeg -i entrada.mp3 -ar 16000 -ac 1 -c:a pcm_s16le audio.wav`
+- Até 30 s por chamada; o exemplo corta o que passar disso.
+- `whisper_setup.py` aceita `--precision FP16 FP32`, `--force` e `--engine-dir`. Ele grava tudo em `models/`, que fica fora do git, e deixa os testes do Whisper prontos.
+- Texto errado ou repetido em FP16: compare com `--precision FP32 --force`.
+- O `infer` recebe log-mel, não áudio: veja `log_mel()` em [examples/whisper_demo.py](../examples/whisper_demo.py) e a seção 4.1 do [contrato](contrato.md).
+
+### Áudio entra, texto sai
+
+O P2 só executa tensores. O [examples/whisper_example.py](../examples/whisper_example.py) traz a classe `WhisperBridge`, com `load`, `info`, `infer` e `release`, que recebe áudio e devolve texto. Ela divide áudio longo em trechos de 30 s.
+
+```bash
+python3 examples/whisper_example.py audio.wav
+```
+
+```python
+from whisper_example import WhisperBridge
+
+bridge = WhisperBridge()                        # language="pt"
+handle = bridge.load()
+resultado, metricas = bridge.infer(handle, audio)   # audio: 1D, float32, 16 kHz, mono
+resultado["text"], resultado["confidence"]
+bridge.release(handle)
+```
+
+No I5, copie `whisper_example.py` e `whisper_demo.py` para o repositório e injete a ponte no transcritor, sem mudar mais nada:
+
+```python
+TranscritorWhisper(model_name="whisper-small", p2_module=WhisperBridge())
+```

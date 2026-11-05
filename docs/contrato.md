@@ -9,14 +9,14 @@ Este documento detalha os tipos e erros da API fechada do P2 na Arquitetura 6c (
 - A versão 1.0 (lib 0.1.x) está na tag `v0.1.0`; as diferenças estão na seção 8
 - Decisões de origem: [decisoes.md](decisoes.md)
 
-> **Situação:** contrato da lib 0.2.0, em desenvolvimento. A pré-release `0.2.0a2` já traz os tipos desta versão (`p2.TensorArray`), mas o comportamento ainda é o da 0.1.0: modelos estáticos, `float32`, um engine por modelo. Até a 0.2.0, programe contra este documento e teste com modelos estáticos.
+> **Situação:** contrato da lib 0.2.0, em desenvolvimento. A pré-release `0.2.0a3` já implementa este contrato: validada na CPU com o Whisper-small de ponta a ponta, ainda não validada no TensorRT.
 
 ## 1. Instalação
 
 | Quando | Comando |
 | --- | --- |
 | Release 0.1.0 (contrato 1.0) | `pip install https://github.com/ods-26-2/p2/releases/download/v0.1.0/p2-0.1.0-py3-none-any.whl` |
-| Pré-release 0.2.0a2 (tipos da 1.1, comportamento da 1.0) | `pip install https://github.com/ods-26-2/p2/releases/download/v0.2.0a2/p2-0.2.0a2-py3-none-any.whl` |
+| Pré-release 0.2.0a3 (este contrato; TensorRT a validar na placa) | `pip install https://github.com/ods-26-2/p2/releases/download/v0.2.0a3/p2-0.2.0a3-py3-none-any.whl` |
 | Release 0.2.0 (este contrato) | `pip install https://github.com/ods-26-2/p2/releases/download/v0.2.0/p2-0.2.0-py3-none-any.whl` |
 | Na Jetson | wheel com o extra `trt`; o `tensorrt` vem do JetPack 6.2.1 (TensorRT 10.3.0), não do pip |
 | No notebook | wheel com o extra `cpu` (ONNX Runtime) |
@@ -149,33 +149,46 @@ Cada etapa de um modelo é um `engine_ref` próprio, com pacote MODEL próprio. 
 | I7 | OCR em dois estágios | `<detector>-<versão>`, `<reconhecedor>-<versão>` | Duas etapas; recorte da placa no I7; lote dinâmico de recortes |
 | I8 | Modelos sem classes | `<modelo>-<versão>` | `task` diferente de `detect`, `classes` opcional |
 
-### 4.1 Exemplo: decoder do Whisper
+### 4.1 Whisper: formato de entrada e exemplo
+
+O `infer` não recebe áudio. Ele recebe os tensores do ONNX. A conversão de áudio para log-mel é pré-processamento e fica no I5, como o letterbox fica no I1.
+
+| Etapa | Quem faz | Formato |
+| --- | --- | --- |
+| Áudio do I5 | I5 | `np.ndarray` 1D, `float32`, mono, 16.000 Hz, amostras em `[-1, 1]` |
+| Log-mel | I5 | Completa ou corta em 30 s (480.000 amostras); `n_fft` 400, `hop` 160, 80 mels |
+| Entrada do encoder | P2 | `input_features`: `float32`, forma `[1, 80, 3000]` |
+| Saída do encoder | P2 | `last_hidden_state`: `float32`, forma `[1, 1500, 768]` |
+| Entrada do decoder | P2 | `input_ids`: `int64`, `[1, N]`, N de 1 a 448; `encoder_hidden_states`: saída do encoder |
+| Saída do decoder | P2 | `logits`: `float32`, `[1, N, 51865]` |
+
+Os nomes e as formas são os do Whisper-small exportado para ONNX. O `whisper-large-v3` usa 128 mels, e cada tamanho tem sua dimensão oculta.
 
 ```python
 import numpy as np
 import p2
 
-encoder = p2.load("whisper-tiny-encoder-1.0.0")
-decoder = p2.load("whisper-tiny-decoder-1.0.0")
+encoder = p2.load("whisper-small-encoder-1.0.0")
+decoder = p2.load("whisper-small-decoder-1.0.0")
 
-p2.info(decoder)["input_shape"]
-# {"tokens": [1, -1], "audio_features": [1, 1500, 384]}
+mel = log_mel(samples)                                       # float32 [1, 80, 3000]
+features = p2.infer(encoder, {"input_features": mel})[0]["last_hidden_state"]
 
-features = p2.infer(encoder, {"mel": mel})[0]["audio_features"]
-tokens = np.array([[50258, 50259, 50359]], dtype=np.int64)   # forma [1, 3], dentro de [1, 1]..[1, 448]
-for _ in range(MAX_TOKENS):
-    out, _ = p2.infer(decoder, {"tokens": tokens, "audio_features": features})
-    logits = np.asarray(out["logits"], dtype=np.float32)      # forma [1, tokens.shape[1], 51865]
-    next_token = int(logits[0, -1].argmax())
-    if next_token == END_OF_TEXT:
+tokens = [SOT, LANGUAGE, TRANSCRIBE, NO_TIMESTAMPS]
+while len(tokens) < 448:
+    ids = np.array([tokens], dtype=np.int64)                 # forma [1, N]
+    out, _ = p2.infer(decoder, {"input_ids": ids, "encoder_hidden_states": features})
+    logits = np.asarray(out["logits"], dtype=np.float32)     # forma [1, N, 51865]
+    token = int(logits[0, -1].argmax())
+    if token == END_OF_TEXT:
         break
-    tokens = np.concatenate([tokens, [[next_token]]], axis=1)
+    tokens.append(token)
 
 p2.release(decoder)
 p2.release(encoder)
 ```
 
-Os nomes dos tensores e as formas são ilustrativos; os reais vêm do export do B5 (seção 9). Com cache KV, o decoder tem mais entradas e saídas, e o laço passa o cache de uma chamada para a próxima.
+O exemplo completo, com o cálculo do log-mel e o tokenizer, está em [examples/whisper_demo.py](../examples/whisper_demo.py). Com cache KV, o decoder vira duas etapas (primeiro passo e passos seguintes), com mais entradas e saídas, e o laço passa o cache de uma chamada para a próxima.
 
 ### 4.2 Exemplo: lote de recortes (ReID)
 
@@ -257,8 +270,8 @@ O `p2-build` lê uma pasta com o `metadata.json` e o `.onnx`. O `descriptor.json
 | `hash_sha256` | texto | sim | `"3da7aa2a…63122"` | Deve bater com o sha256 do `onnx_file` |
 | `precision` | texto | sim | `"FP32"` | Precisão do ONNX; deve ser `"FP32"` |
 | `task` | texto | não (padrão `"detect"`) | `"speech-decoder"` | Um de `detect`, `classify`, `segment`, `ocr`, `reid`, `speech-encoder`, `speech-decoder`, `vad`, `other`; define as validações abaixo |
-| `input_shape` | lista ou `{nome: lista}` | sim | `[1, 3, 640, 640]` ou `{"tokens": [1, -1], "audio_features": [1, 1500, 384]}` | Igual às entradas do ONNX; `-1` nos eixos dinâmicos; `[]` para escalar. Lista só com uma entrada |
-| `dynamic_shapes` | `{nome: {min, opt, max}}` | só com eixo dinâmico | `{"tokens": {"min": [1, 1], "opt": [1, 64], "max": [1, 448]}}` | Limites do perfil de otimização (seção 6.1) |
+| `input_shape` | lista ou `{nome: lista}` | sim | `[1, 3, 640, 640]` ou `{"input_ids": [-1, -1], "encoder_hidden_states": [-1, -1, 768]}` | Igual às entradas do ONNX; `-1` nos eixos dinâmicos; `[]` para escalar. Lista só com uma entrada |
+| `dynamic_shapes` | `{nome: {min, opt, max}}` | só com eixo dinâmico | `{"input_ids": {"min": [1, 1], "opt": [1, 64], "max": [1, 448]}}` | Limites do perfil de otimização (seção 6.1) |
 | `classes` | lista de nomes | só em `detect` | `["pessoa", "capacete", "colete"]` | Em `detect`, a saída deve ter `4 + len(classes)` linhas (eixo 1) |
 
 ### 6.1 `dynamic_shapes`
@@ -270,6 +283,7 @@ O `p2-build` lê uma pasta com o `metadata.json` e o `.onnx`. O `descriptor.json
 - `opt` é a forma em que o TensorRT otimiza e a que o `p2-bench` mede; use a forma mais frequente em produção
 - `max` define a memória reservada no `load`: escolha o menor valor que atende o caso de uso
 - Perfil em entrada sem eixo dinâmico, ou entrada inexistente, é recusado
+- Eixo com `min == max` é fixado no ONNX antes da compilação. Isso é necessário para exports em que todos os eixos são simbólicos, como o encoder do Whisper: o TensorRT exige canal fixo em `Conv`
 
 ### 6.2 Validações por `task`
 
@@ -285,25 +299,30 @@ O `p2-build` lê uma pasta com o `metadata.json` e o `.onnx`. O `descriptor.json
 - Formas declaradas em todas as entradas e saídas. Eixos simbólicos (`dim_param`) contam como dinâmicos
 - Formas de saída que dependem dos dados (por exemplo `NonZero`) não são suportadas
 - Um perfil de otimização por engine
+- Pesos dentro do `.onnx`: arquivos com dados externos são recusados
+- Para compilar em FP16, prefira opset 17 ou maior: em opsets menores o LayerNorm fica decomposto e pode estourar o intervalo do FP16
 
 Qualquer divergência nos campos acima, no hash, na forma, no perfil ou no número de classes faz o `p2-build` parar com código de saída 1 e uma mensagem em português, sem gravar nada. Exemplos:
 
 - `hash diferente: esperado 3da7…, obtido 91c2…`
 - `saída deve ter 7 linhas (4 + 3 classes), obtido forma [1, 84, 8400]`
-- `entrada 'tokens' tem eixo dinâmico [1, -1]; declare min/opt/max em dynamic_shapes`
+- `entrada 'input_ids' tem eixo dinâmico [-1, -1]; declare min/opt/max em dynamic_shapes`
 
-### 6.4 Exemplo: pacote do decoder do Whisper
+### 6.4 Exemplo: pacote do decoder do Whisper-small
 
 ```json
 {
-  "artifact_id": "whisper-tiny-decoder",
+  "artifact_id": "whisper-small-decoder",
   "artifact_version": "1.0.0",
   "onnx_file": "decoder.onnx",
   "hash_sha256": "…",
   "precision": "FP32",
   "task": "speech-decoder",
-  "input_shape": { "tokens": [1, -1], "audio_features": [1, 1500, 384] },
-  "dynamic_shapes": { "tokens": { "min": [1, 1], "opt": [1, 64], "max": [1, 448] } }
+  "input_shape": { "input_ids": [-1, -1], "encoder_hidden_states": [-1, -1, 768] },
+  "dynamic_shapes": {
+    "input_ids": { "min": [1, 1], "opt": [1, 64], "max": [1, 448] },
+    "encoder_hidden_states": { "min": [1, 1500, 768], "opt": [1, 1500, 768], "max": [1, 1500, 768] }
+  }
 }
 ```
 
@@ -352,15 +371,18 @@ O `p2-build` grava uma pasta por `engine_ref`, que o `load` usa para achar e val
 ```json
 {
   "schema_version": 2,
-  "engine_ref": "whisper-tiny-decoder-1.0.0",
+  "engine_ref": "whisper-small-decoder-1.0.0",
   "inputs": {
-    "tokens": {
-      "shape": [1, -1], "dtype": "int64",
+    "input_ids": {
+      "shape": [-1, -1], "dtype": "int64",
       "profile": { "min": [1, 1], "opt": [1, 64], "max": [1, 448] }
     },
-    "audio_features": { "shape": [1, 1500, 384], "dtype": "float32" }
+    "encoder_hidden_states": {
+      "shape": [-1, -1, 768], "dtype": "float32",
+      "profile": { "min": [1, 1500, 768], "opt": [1, 1500, 768], "max": [1, 1500, 768] }
+    }
   },
-  "outputs": { "logits": { "shape": [1, -1, 51865], "dtype": "float32" } },
+  "outputs": { "logits": { "shape": [-1, -1, 51865], "dtype": "float32" } },
   "max_batch": 1,
   "…": "source, variants, platform e build como na versão 1"
 }
@@ -387,7 +409,7 @@ O `p2-build` grava uma pasta por `engine_ref`, que o `load` usa para achar e val
 
 | Com quem | O quê |
 | --- | --- |
-| B5 e VER-4 | Exportar encoder e decoder do Whisper em ONNX separados e decidir se o decoder usa cache KV: com cache, mais entradas e mais velocidade |
+| B5 e VER-4 | Exportar encoder e decoder do Whisper em ONNX separados, com opset 17 ou maior, e decidir se o decoder usa cache KV: com cache, mais entradas e mais velocidade; sem cache, exportar só `logits`, porque as 48 saídas `present.*` custam cópia a cada token |
 | B5 e INV-2 | Converter cada submodelo do MediaPipe (pose, mãos, rosto) para ONNX; cada um vira uma etapa |
 | MOD-1 e B5 | Combinar os campos novos do pacote MODEL (`task`, `dynamic_shapes`, `input_shape` em dicionário) |
 | Cada consumidor | Medir cada etapa com `p2-bench`: com dois ou mais engines no mesmo processo, o orçamento é a soma das etapas mais o custo fixo do processo |
