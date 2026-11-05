@@ -24,6 +24,7 @@
 - R7 (usuário): wheel testado num venv limpo na Jetson
 - R8 (externo, com confirmação): tag `v0.1.0` e release com `p2-0.1.0-py3-none-any.whl` em `ods-26-2/p2`
 - R10: `examples/example.py`: detecção YOLO com padrão `app-plates-1.0.0`; imagens pela linha de comando (padrão: `assets/bus.jpg`, `assets/dogi.jpeg`); classes do `metadata.json` do engine ou de `--classes`; `--conf`/`--iou`; reusa `yolo_demo`; anotadas em `runs/example/`; `P2Error` → exit 1
+- R11: `docs/guia-rapido.md`: instalar (Jetson/notebook), compilar (`p2-build`, `--cpu-only`), usar (`load`/`info`/`infer`/`release`, erros), testes; enxuto, aponta para o `example.py`
 - R9: ONNX do yolo11n em `models/yolo11n.onnx` (fora do git); testes montam o pacote numa pasta temporária com o `metadata.json` da fixture (`onnx_file: yolo11n.onnx`); sem o arquivo, skip
 
 ## Regras
@@ -56,6 +57,7 @@
 - [x] T10: corrigir D6
 - [x] T11: `examples/example.py` + `tests/test_example.py` (R10, D9)
 - [x] T12: example.py para o `app-plates-1.0.0` (R10, D10, D11)
+- [x] T13: `docs/guia-rapido.md` + link no README (R11)
 
 ## Mapa de código
 
@@ -85,6 +87,9 @@
 ### tests/test_example.py
 - nomes de arquivo, padrões (app-plates, assets), CLI (imagem, --conf, --classes), classes do metadata do engine e por arquivo com yolo11n na CPU, engine ausente [R10]
 
+### docs/guia-rapido.md, README.md (de 003)
+- passo a passo enxuto com URLs da v0.1.0 e o app-plates como exemplo; link no README [R11]
+
 ### tests/helpers/yolo11n.py
 - YOLO11N_REF, YOLO11N_ONNX (`models/yolo11n.onnx`), YOLO11N_METADATA, YOLO11N_MISSING: Final [R9]
 - def yolo11n_available() -> bool; def yolo11n_package(directory: Path) -> Path: metadata copiado + symlink do ONNX [R9, D7]
@@ -113,3 +118,4 @@
 - 2026-11-04: T11 (branch dev-v0.2.0): example.py na CPU: bus.jpg → bus 0,94, person 0,90/0,85/0,83/0,40; dogi.jpeg → dog 0,94; pytest 222 passed, 3 skipped com o modelo
 - 2026-11-04: T12: example.py com padrão app-plates-1.0.0; validado com yolo11n na CPU (--engine-ref); pytest 225 passed, 3 skipped com o modelo; mypy e ruff ok; app-plates não testado (pacote só na placa)
 - 2026-11-04: metadata.json do app-plates-1.0.0 recebido: 4 classes, estático FP32, sem task; example.py serve sem mudança (D10)
+- 2026-11-04: usuário relatou que o example.py funcionou com o app-plates; T13: guia rápido (conferido contra README, contrato e CLI)

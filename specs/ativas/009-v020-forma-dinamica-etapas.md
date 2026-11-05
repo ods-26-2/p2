@@ -72,6 +72,7 @@
 - [ ] T10 (aguarda decisão): testes do R16 no notebook; versões Jetson dos testes
 - [ ] T11 (usuário, Jetson; depende de B5/VER-4): Whisper tiny de ponta a ponta
 - [x] T13: pré-release `v0.2.0a1` (D16)
+- [x] T14: pré-release `v0.2.0a2`: example.py do app-plates e guia rápido (D16; 008/T12–T13)
 - [ ] T12 (externo, com confirmação): release `v0.2.0`
 
 ## Mapa de código
@@ -102,3 +103,4 @@
 - 2026-11-04: T1–T4: contrato 1.1, plano E8, tipos públicos, decisões, pendências no INDEX; pytest 213 passed, 9 skipped (219/3 com models/yolo11n.onnx); mypy strict 45 arquivos; ruff ok; nada commitado
 - 2026-11-04: T13: versão 0.2.0a1; wheel p2-0.2.0a1-py3-none-any.whl sha256 6c9935cf…bd3036d, 19 módulos, sem tests/scripts/examples/assets; venv limpo [cpu] ok; pytest 215 passed, 10 skipped; mypy e ruff ok; commit 990b3da + merge bcbbd37 na develop
 - 2026-11-04: pré-release `v0.2.0a1` publicada via `gh` (--prerelease) com o wheel; download pela URL com sha256 6c9935cf…bd3036d; `v0.1.0` segue como Latest; develop, main e dev-v0.2.0 no remoto
+- 2026-11-04: T14: versão 0.2.0a2; wheel sha256 6514602f…dd29f4cc, 19 módulos; venv limpo [cpu] ok; pytest 217 passed, 11 skipped; mypy e ruff ok

@@ -6,7 +6,7 @@ Próximo ID: 010
 
 | ID | Título | Estado | Escopo | Tags | Resumo |
 |----|--------|--------|--------|------|--------|
-| 009 | v0.2.0: forma dinâmica, várias etapas e tipos por tensor | ativa | `docs/contrato.md`, `plano-p2.md`, `docs/depois.md`, `docs/decisoes.md`, `src/p2/manifest.py`, `src/p2/build/package.py`, `src/p2/api.py`, `src/p2/handle.py`, `src/p2/backends/**`, `src/p2/build/**`, `src/p2/cli/bench.py`, `pyproject.toml` | v0.2.0, E8, interface, contrato-1.1, forma-dinamica, perfil, lote, dtype, task, etapas, whisper, vad, ocr, reid | Contrato 1.1 e tipos na pré-release 0.2.0a1; implementação aguarda decisão |
+| 009 | v0.2.0: forma dinâmica, várias etapas e tipos por tensor | ativa | `docs/contrato.md`, `plano-p2.md`, `docs/depois.md`, `docs/decisoes.md`, `src/p2/manifest.py`, `src/p2/build/package.py`, `src/p2/api.py`, `src/p2/handle.py`, `src/p2/backends/**`, `src/p2/build/**`, `src/p2/cli/bench.py`, `pyproject.toml` | v0.2.0, E8, interface, contrato-1.1, forma-dinamica, perfil, lote, dtype, task, etapas, whisper, vad, ocr, reid | Contrato 1.1 e tipos na pré-release 0.2.0a2; implementação aguarda decisão |
 | 008 | E7: exemplo, guia de integração e release 0.1.0 | ativa | `examples/**`, `docs/guia-integracao.md`, `pyproject.toml`, `tests/test_yolo_demo.py`, `tests/helpers/yolo11n.py`, `tests/fixtures/yolo11n-1.0.0/**`, `tests/test_yolo11n.py`, `tests/jetson/conftest.py`, `tests/jetson/test_build_trt.py`, `dist/` | E7, release, wheel, exemplo, yolo_demo, guia, integracao, I1, docker, letterbox, nms, yolo11n, fixture, models | Exemplo YOLO completo, guia para I1, release 0.1.0 publicada; faltam Jetson e I1 |
 | 007 | E6: p2-bench, p2-list e orçamento | ativa | `src/p2/cli/bench.py`, `src/p2/cli/list.py`, `src/p2/build/platform.py`, `pyproject.toml`, `docs/orcamento.md`, `tests/test_cli_bench.py`, `tests/test_cli_list.py` | E6, p2-bench, p2-list, cli, memoria, orcamento, latencia, nvpmodel, jetson | Mede latência/memória, lista engines e compatibilidade, método do orçamento |
 | 006 | E5: backend TensorRT e equivalência | ativa | `src/p2/backends/trt.py`, `src/p2/backends/variants.py`, `src/p2/api.py`, `src/p2/build/compiler.py`, `src/p2/build/output.py`, `typings/**`, `tests/helpers/yolo.py`, `tests/jetson/**`, `tests/test_variants.py`, `tests/test_yolo_helpers.py`, `tests/test_yolo11n.py` | E5, tensorrt, backend, gpu, cuda, cudart, equivalencia, yolo, nms, jetson | Backend TRT do load/infer, smoke do p2-build, equivalência CPU×FP32×FP16 |
@@ -26,14 +26,14 @@ Próximo ID: 010
 
 ## Pendências abertas
 
-Atualizado em 2026-11-04 (pré-release v0.2.0a1 publicada). Ler antes de qualquer alteração; avisar o usuário quando o pedido tocar ou destravar uma pendência.
+Atualizado em 2026-11-04 (pré-release v0.2.0a2 publicada). Ler antes de qualquer alteração; avisar o usuário quando o pedido tocar ou destravar uma pendência.
 
 ### v0.2.0 (009, branch `dev-v0.2.0`)
 - Implementação aguardando decisão do usuário: 009/T5–T10 (manifesto v2, pacote por `task`, `infer` com dtype/perfil, TRT dinâmico, smoke/bench, testes). Rascunho incompleto em `git stash` "rascunho da implementação 0.2.0"
 - Decisões assumidas a revisar: 009/D1–D15, sobretudo D2 (`info` sem perfis), D3 (retorno `TensorArray`), D4 (manifesto v1 para estático)
 - Enviar o Contrato P2 1.1 a I2, I4, I5, I7, I8, MOD-1, B5 e B1 (substitui o envio da 1.0 em 004/T3)
 - Externos: B5 + VER-4 exportam o Whisper (encoder/decoder; cache KV?); B5 + INV-2 convertem o MediaPipe; MOD-1 + B5 aceitam `task`/`dynamic_shapes`
-- 009/T11 (Jetson): Whisper tiny de ponta a ponta; 009/T12: release `v0.2.0` final (a `v0.2.0a1` é só a interface)
+- 009/T11 (Jetson): Whisper tiny de ponta a ponta; 009/T12: release `v0.2.0` final (as pré-releases `v0.2.0a1`/`a2` são só a interface)
 
 ### Jetson (v0.1.0)
 - 003/T6: `check_jetson.py` com exit 0

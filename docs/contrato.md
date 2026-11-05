@@ -9,14 +9,14 @@ Este documento detalha os tipos e erros da API fechada do P2 na Arquitetura 6c (
 - A versão 1.0 (lib 0.1.x) está na tag `v0.1.0`; as diferenças estão na seção 8
 - Decisões de origem: [decisoes.md](decisoes.md)
 
-> **Situação:** contrato da lib 0.2.0, em desenvolvimento. A pré-release `0.2.0a1` já traz os tipos desta versão (`p2.TensorArray`), mas o comportamento ainda é o da 0.1.0: modelos estáticos, `float32`, um engine por modelo. Até a 0.2.0, programe contra este documento e teste com modelos estáticos.
+> **Situação:** contrato da lib 0.2.0, em desenvolvimento. A pré-release `0.2.0a2` já traz os tipos desta versão (`p2.TensorArray`), mas o comportamento ainda é o da 0.1.0: modelos estáticos, `float32`, um engine por modelo. Até a 0.2.0, programe contra este documento e teste com modelos estáticos.
 
 ## 1. Instalação
 
 | Quando | Comando |
 | --- | --- |
 | Release 0.1.0 (contrato 1.0) | `pip install https://github.com/ods-26-2/p2/releases/download/v0.1.0/p2-0.1.0-py3-none-any.whl` |
-| Pré-release 0.2.0a1 (tipos da 1.1, comportamento da 1.0) | `pip install https://github.com/ods-26-2/p2/releases/download/v0.2.0a1/p2-0.2.0a1-py3-none-any.whl` |
+| Pré-release 0.2.0a2 (tipos da 1.1, comportamento da 1.0) | `pip install https://github.com/ods-26-2/p2/releases/download/v0.2.0a2/p2-0.2.0a2-py3-none-any.whl` |
 | Release 0.2.0 (este contrato) | `pip install https://github.com/ods-26-2/p2/releases/download/v0.2.0/p2-0.2.0-py3-none-any.whl` |
 | Na Jetson | wheel com o extra `trt`; o `tensorrt` vem do JetPack 6.2.1 (TensorRT 10.3.0), não do pip |
 | No notebook | wheel com o extra `cpu` (ONNX Runtime) |
