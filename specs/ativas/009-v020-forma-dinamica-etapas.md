@@ -163,3 +163,4 @@
 - 2026-11-05: T18: `TranscritorWhisper` do I5 sem alteração (cópia) com `WhisperBridge` na CPU: 4 áudios em português e 1 de 40 s; envelope com texto, confiança e `artifact_version`; pytest com modelos 310 passed, 4 skipped; sem modelos 300 passed, 14 skipped; mypy strict 57 arquivos; ruff ok
 - 2026-11-05: auditoria de escopo de `src/p2`: sem lógica de Whisper, sem dependência nova, API igual + `TensorArray`; removido warn_non_finite (D19); extras mantidos: R18 (necessário para compilar) e R19 (recusa); engine do Whisper ainda não compilado
 - 2026-11-05: T19: versão 0.2.0a3; wheel sha256 9bb07c2a…5a4c45, 19 módulos; venv limpo [cpu] ok; com modelos reais pytest 310 passed, 4 skipped; mypy e ruff ok
+- 2026-11-05: pré-release `v0.2.0a3` publicada via `gh` (--prerelease); download com sha256 9bb07c2a…5a4c45; `v0.1.0` segue como Latest
